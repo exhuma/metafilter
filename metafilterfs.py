@@ -12,9 +12,22 @@ import logging
 import logging.handlers
 import sys
 
+if not hasattr(fuse, '__version__'):
+    raise RuntimeError, \
+        "your fuse-py doesn't know of fuse.__version__, probably it's too old."
 fuse.fuse_python_api = (0, 2)
+fuse.feature_assert('stateful_files', 'has_init')
 
-class LoggingFuse(fuse.Fuse):
+def flag2mode(flags):
+   md = {os.O_RDONLY: 'r', os.O_WRONLY: 'w', os.O_RDWR: 'w+'}
+   m = md[flags & (os.O_RDONLY | os.O_WRONLY | os.O_RDWR)]
+
+   if flags | os.O_APPEND:
+      m = m.replace('w', 'a', 1)
+
+   return m
+
+class LoggingFuseObsolete(fuse.Fuse):
 
     def __init__(self, *args, **kw):
         fuse.Fuse.__init__(self, *args, **kw)
@@ -56,9 +69,9 @@ class LoggingFuse(fuse.Fuse):
        self.log.debug("Called unimplemented mknod on %s with %r" % (path, locals()))
        return -errno.ENOSYS
 
-    def open ( self, path, flags ):
-       self.log.debug("Called unimplemented open on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+    #def open ( self, path, flags ):
+    #   self.log.debug("Called unimplemented open on %s with %r" % (path, locals()))
+    #   return -errno.ENOSYS
 
     def read ( self, path, length, offset ):
        self.log.debug("Called unimplemented read on %s with %r" % (path, locals()))
@@ -68,8 +81,8 @@ class LoggingFuse(fuse.Fuse):
        self.log.debug("Called unimplemented readlink on %s with %r" % (path, locals()))
        return -errno.ENOSYS
 
-    def release ( self, path, flags ):
-       self.log.debug("Called unimplemented release on %s with %r" % (path, locals()))
+    def release ( self, *args ):
+       self.log.debug("Called unimplemented release with %r" % (locals()))
        return -errno.ENOSYS
 
     def rename ( self, oldPath, newPath ):
@@ -104,6 +117,72 @@ class LoggingFuse(fuse.Fuse):
        self.log.debug("Called unimplemented write on %s with %r" % (path, locals()))
        return -errno.ENOSYS
 
+class LoggingFuse(fuse.Fuse):
+
+    def __init__(self, *args, **kw):
+        fuse.Fuse.__init__(self, *args, **kw)
+        self.log = logging.getLogger(__name__)
+
+    def getattr(self, path):
+       self.log.debug("Called unimplemented getattr on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def getdir(self, path):
+       self.log.debug("Called unimplemented getdir on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def mythread ( self ):
+       self.log.debug("Called unimplemented mythread with %r" % locals())
+       return -errno.ENOSYS
+
+    def chmod ( self, path, mode ):
+       self.log.debug("Called unimplemented chmod on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def chown ( self, path, uid, gid ):
+       self.log.debug("Called unimplemented chown on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def link ( self, targetPath, linkPath ):
+       self.log.debug("Called unimplemented link on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def mkdir ( self, path, mode ):
+       self.log.debug("Called unimplemented mkdir on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def mknod ( self, path, mode, dev ):
+       self.log.debug("Called unimplemented mknod on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def readlink ( self, path ):
+       self.log.debug("Called unimplemented readlink on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def rename ( self, oldPath, newPath ):
+       self.log.debug("Called unimplemented rename on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def rmdir ( self, path ):
+       self.log.debug("Called unimplemented rmdir on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def statfs ( self ):
+       self.log.debug("Called unimplemented statfs on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def symlink ( self, targetPath, linkPath ):
+       self.log.debug("Called unimplemented symlink on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def unlink ( self, path ):
+       self.log.debug("Called unimplemented unlink on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
+    def utime ( self, path, times ):
+       self.log.debug("Called unimplemented utime on %s with %r" % (path, locals()))
+       return -errno.ENOSYS
+
 class MyStat(fuse.Stat):
    def __init__(self):
       self.st_mode = stat.S_IFDIR | 0755
@@ -119,13 +198,13 @@ class MyStat(fuse.Stat):
 
 class MetaFilterFS(LoggingFuse):
 
-   def __init__(self, chroot, *args, **kwargs):
+   def __init__(self, *args, **kwargs):
       fuse.Fuse.__init__(self, *args, **kwargs)
       self.log = logging.getLogger(__name__)
       self.setup_logging()
       self.log.info("*** Fuse Initialised")
       self.sess = Session()
-      self.chroot = chroot
+      self.root = '/'
 
    def setup_logging(self):
       file_out = logging.handlers.RotatingFileHandler("/tmp/fuse.log", maxBytes=100000)
@@ -136,7 +215,7 @@ class MetaFilterFS(LoggingFuse):
 
    def abspath(self, relpath):
       node_path = self.path_items(relpath)
-      out = join( self.chroot, *node_path[1:] )
+      out = join( self.root, *node_path[1:] )
       self.log.debug("Converted %s to %s" % ( relpath, out ))
       return out
 
@@ -145,6 +224,9 @@ class MetaFilterFS(LoggingFuse):
 
    def path_items(self, relpath):
       return relpath.split(sep)[1:]
+
+   def fsinit(self):
+      os.chdir(self.root)
 
    def getattr(self, path):
       if path.startswith('/.Trash'):
@@ -170,21 +252,11 @@ class MetaFilterFS(LoggingFuse):
             abspath = self.abspath(path)
             if not exists(abspath):
                return -errno.ENOENT
-            file_stat = os.stat(abspath)
             qry = self.sess.query(Node)
             qry = qry.filter( Node.uri == abspath )
             node = qry.first()
             if node:
-               st.st_ctime = file_stat.st_ctime
-               st.st_atime = file_stat.st_atime
-               st.st_mtime = file_stat.st_mtime
-               st.st_mode = file_stat.st_mode
-               st.st_ino = file_stat.st_ino
-               st.st_dev = file_stat.st_dev
-               st.st_nlink = file_stat.st_nlink
-               st.st_uid = file_stat.st_uid
-               st.st_gid = file_stat.st_gid
-               st.st_size = file_stat.st_size
+               return os.lstat(abspath)
             return st
          else:
             return -errno.ENOENT
@@ -210,9 +282,9 @@ class MetaFilterFS(LoggingFuse):
             query = nodes[1]
             self.log.debug("query nodes: %s" % nodes)
             if len(nodes) == 2:
-               parent_node = self.chroot
+               parent_node = self.root
             else:
-               parent_node = join(self.chroot, *nodes[2:])
+               parent_node = join(self.root, *nodes[2:])
             self.log.debug("Querying for %s in %s" % (query, parent_node))
             result = from_query( self.sess, parent_node, query )
             for row in result:
@@ -256,19 +328,118 @@ class MetaFilterFS(LoggingFuse):
       self.sess.commit()
       return 0
 
-   def read ( self, path, length, offset ):
-      self.log.debug( '*** read %s - %s - %s' % (path, length, offset) )
-      fptr = open( self.abspath(path), "rb" )
-      fptr.seek(offset)
-      chunk = fptr.read(length)
-      return chunk
+   # def read ( self, path, length, offset ):
+   #    self.log.debug( '*** read %s - %s - %s' % (path, length, offset) )
+   #    fptr = open( self.abspath(path), "rb" )
+   #    fptr.seek(offset)
+   #    chunk = fptr.read(length)
+   #    return chunk
+
+   class MetaFile(object):
+
+      def __init__(self, path, flags, *mode):
+
+         self.log = logging.getLogger("%s.%s" % (__name__, "MetaFile"))
+         try:
+            path = join(".", *path.split(sep)[2:])
+            self.log.debug("Opening file at path %s in %s" % (path, os.getcwd()))
+            self.file = os.fdopen(os.open(path, flags, *mode),
+                                  flag2mode(flags))
+            self.fd = self.file.fileno()
+            self.log.debug("Opened as %s" % self.file)
+         except Exception, exc:
+            self.log.exception(exc)
+
+      def read(self, length, offset, *args):
+         self.log.debug("Reading: %r" %locals() )
+         self.file.seek(offset)
+         return self.file.read(length)
+
+      def write(self, buf, offset):
+         self.file.seek(offset)
+         self.file.write(buf)
+         return len(buf)
+
+      def release(self, *args):
+         self.log.debug("Releasing: %r" %locals() )
+         self.file.close()
+
+      def _fflush(self):
+         if 'w' in self.file.mode or 'a' in self.file.mode:
+             self.file.flush()
+
+      def fsync(self, isfsyncfile):
+         self._fflush()
+         if isfsyncfile and hasattr(os, 'fdatasync'):
+             os.fdatasync(self.fd)
+         else:
+             os.fsync(self.fd)
+
+      def flush(self):
+         self._fflush()
+         # cf. xmp_flush() in fusexmp_fh.c
+         os.close(os.dup(self.fd))
+
+      def fgetattr(self):
+         try:
+            return os.fstat(self.fd)
+         except Exception, exc:
+            self.log.exception(exc)
+
+      def ftruncate(self, len):
+         self.file.truncate(len)
+
+      # def lock(self, cmd, owner, **kw):
+      #    # The code here is much rather just a demonstration of the locking
+      #    # API than something which actually was seen to be useful.
+
+      #    # Advisory file locking is pretty messy in Unix, and the Python
+      #    # interface to this doesn't make it better.
+      #    # We can't do fcntl(2)/F_GETLK from Python in a platfrom independent
+      #    # way. The following implementation *might* work under Linux. 
+      #    #
+      #    # if cmd == fcntl.F_GETLK:
+      #    #     import struct
+      #    # 
+      #    #     lockdata = struct.pack('hhQQi', kw['l_type'], os.SEEK_SET,
+      #    #                            kw['l_start'], kw['l_len'], kw['l_pid'])
+      #    #     ld2 = fcntl.fcntl(self.fd, fcntl.F_GETLK, lockdata)
+      #    #     flockfields = ('l_type', 'l_whence', 'l_start', 'l_len', 'l_pid')
+      #    #     uld2 = struct.unpack('hhQQi', ld2)
+      #    #     res = {}
+      #    #     for i in xrange(len(uld2)):
+      #    #          res[flockfields[i]] = uld2[i]
+      #    #  
+      #    #     return fuse.Flock(**res)
+
+      #    # Convert fcntl-ish lock parameters to Python's weird
+      #    # lockf(3)/flock(2) medley locking API...
+      #    op = { fcntl.F_UNLCK : fcntl.LOCK_UN,
+      #           fcntl.F_RDLCK : fcntl.LOCK_SH,
+      #           fcntl.F_WRLCK : fcntl.LOCK_EX }[kw['l_type']]
+      #    if cmd == fcntl.F_GETLK:
+      #        return -EOPNOTSUPP
+      #    elif cmd == fcntl.F_SETLK:
+      #        if op != fcntl.LOCK_UN:
+      #            op |= fcntl.LOCK_NB
+      #    elif cmd == fcntl.F_SETLKW:
+      #        pass
+      #    else:
+      #        return -EINVAL
+
+      #    fcntl.lockf(self.fd, op, kw['l_start'], kw['l_len'])
+
+   def main(self, *a, **kw):
+      self.file_class = self.MetaFile
+      return fuse.Fuse.main(self, *a, **kw)
 
 def main():
-   usage="""MetaFilterFS: A filesystem which queries a DB to filter a tree based
-on simple queries.""" + fuse.Fuse.fusage
+   usage="""MetaFilterFS:
+      A filesystem which queries a DB to filter a tree based
+   on simple queries.
+   """ + fuse.Fuse.fusage
 
    server = MetaFilterFS(
-         chroot = sys.argv[1],
          version="%prog " + fuse.__version__,
          usage=usage,
          dash_s_do='setsingle')
@@ -277,7 +448,14 @@ on simple queries.""" + fuse.Fuse.fusage
          metavar="PATH",
          default='/',
          help="mount filtered filesystem from under PATH [default: %default]")
-   server.parse(errex=1)
+   server.parse(values=server, errex=1)
+   try:
+      if server.fuse_args.mount_expected():
+         os.chdir(server.root)
+   except OSError:
+      print >> sys.stderr, "can't enter root (%r) of underlying filesystem" % server.root
+      sys.exit(1)
+
    server.main()
 
 if __name__ == '__main__':
