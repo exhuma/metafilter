@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block body %}
+<table>
+   {% for row in entries %}
+      {% if row.is_dir() %}
+         <tr>
+            <td><a href="{{url_for('show_entries', query=query, parent_path=row.uri[1:])}}">{{ row.basename }}</a></td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+         </tr>
+      {% else %}
+         <tr>
+            <td>{{ row.basename }}</td>
+            <td>{{ row.created }}</td>
+            <td>{{ row.updated }}</td>
+            <td>{{ row.md5 }}</td>
+         </tr>
+   {% endif %}
+   {% else %}
+   <tr>
+     <tr><em>Unbelievable.  No entries here so far</em></td>
+   </tr>
+   {% endfor %}
+   </table>
+{% endblock %}
