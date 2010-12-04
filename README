@@ -1,0 +1,160 @@
+DISCLAIMER
+==========
+
+The name "metafilter" has NOTHING to do with "metafilter.com". I am not
+affiliated in any way with them. I chose this name because: It makes sense! And
+it expresses what this project is doing! It filters on file metadata.
+
+DESCRIPTION
+===========
+
+This project aims to allow users to easily browse files based on time of
+modification on a remote server (or locally) by providing sub-folders
+representing the time queries:
+
+   - 2010-01-01 = Everything that changed after that date
+   - t2010-01-01 = *as above*
+   - 2010-01-01t = Everything that changed before that date
+   - 2009-01-01t2010-01-01 = Everything that changed between those two dates
+
+Other things may follow.
+
+REQUIREMENTS
+============
+
+   - python
+   - postgresql server
+   - postges contrib modules
+   - libfuse-dev
+   - git (to get the sources. It's not yet in pypi)
+
+RECOMMENDED
+===========
+
+   - virtualenv (not in the ubuntu packages, but available via setuptools. See
+                INSTALLATION below)
+
+INSTALLATION (ubuntu)
+=====================
+
+   PRELIMINARY NOTE:
+      Currently the database connection info is *hardcoded* inside
+      'model/__init__.py'! This will be externalised at some point. But for
+      now, consider this "early alpha shenanigans".
+
+      I assume, people that will be using this will be able to make the
+      necessary adaptations. If you need to, then do all changes somewhere
+      before the "python setup.py install" step!
+
+   sudo aptitude install postgresql postgresql-contrib libfuse-dev python-setuptools git-core
+   sudo easy_install virtualenv
+   git clone git://github.com/exhuma/metafilter.git
+   virtualenv --no-site-packages metafilter_env
+   source ./metafilter_env/bin/activate
+   cd metafilter
+   python setup.py install
+
+   Database
+   --------
+
+   Assuming the user "postgres" has superuser privileges (I won't delve into
+   the story about securing your postgres installation...)
+
+      Add something like the following to "/etc/postgres/8.4/main/pg_hba.conf"
+      to allow password based connections (again, this is the 'easiest but less
+      secure' way of doing things):
+
+         host all all 127.0.0.1/32 md5
+
+      CREATING DATABASE AND USER
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      # psql -U postgres template1
+      template1=# CREATE USER filemeta PASSWORD '8769KUU6jyh..87236-';
+      template1=# CREATE DATABASE filemeta OWNER filemeta;
+      template1=# \c filemeta
+      filemeta=# \i /usr/share/postgresql/8.4/contrib/ltree.sql
+      filemeta=# \q
+
+      CREATING TABLES
+      ~~~~~~~~~~~~~~~
+
+      NOTE: While writing this, I realised that the python module name is
+            really bad. I'm still learing setuptools... Put this into the
+            "alpha shenanigans" drawer...
+
+      # python
+      # import model
+      # model.metadata.create_all()
+      # quit()
+
+USAGE
+=====
+
+First, you need to scan the metadata on a folder:
+
+   # rescan_folder.py /home/me
+
+When mounting the FUSE, you need to give it a "root" folder on which to
+operate. This will usually be the same you scanned, but can also be a subfolder
+whithin the scanned folder:
+
+   # metafilterfs.py <mountpoint> -o root=/home/me
+
+By default, no queries are yet defined. To create a sample query:
+
+   # mkdir <mountpoint>/t2010-01-01
+
+You should now be able to browse the files.
+
+WEB INTERFACE
+=============
+
+For the sake of 1) testing and 2) trying out Flask, I created a tiny web-app
+along to browse the files. While I was writing this, I noticed that it's
+broken. It may come back eventually.
+
+Run it with "webserve.py".
+
+KNOWN ISSUES
+============
+
+   - If I haven't said it enough already:
+     !!! CONSIDER THIS ALPHA QUALITY SOFTWARE !!!
+
+     I seriously doubt that you can lose any data while using this, but as I
+     haven't tested it thoroughly, I cannot give you a 100% guarantee.
+     Although, read and write operations are passed through to the underlying
+     system without a change. So there should be nothing that can go wrong.
+
+     Not everything may work as advertised. I've only been on this for a few
+     hours, and it's my first stab at FUSE. So be nice! ;)
+
+   - Scanning is NOT automatic! Consider putting it in a "cron". I haven't yet
+     decided how to make this more usable (using something like fam/gamin/...,
+     or re-scan on-access? Not sure yet.)
+
+   - Scanning is SLOW! Currently all files are scanned all the time and MD5
+     sums are calculated. I will soon change it so that it only scans files
+     that have changed during the previous scan. This will speed things up
+     considerably.
+
+   - Understandably, file access is not as fast as with a traditional
+     filesystem. It's not aiming to be fast, it's aiming to deliver you what
+     you want. BUT: By using postgres with ltree it's much faster that with any
+     other database backend due to the hierarchival indexing (and it made
+     writing the code so much easier...).
+
+     However, during a first test, I noticed that `mpd` (Media Player Classic)
+     looks for subtitle files like CRAZY, which causes many queries. This seems
+     to block the file read. Using VLC works. There may be a solution for this,
+     but it's not yet important for me...
+
+   - Windows & SAMBA
+     To be able to use it with samba, you need to deal with FUSE access rights.
+     The easiest way to do that is to append "-o allow_other" to the mount
+     command. Again, insecure. YMMV.
+
+     Creating new queries using windows is not yet possible (maybe by using
+     CMD). The default windows explorer first tries to create a folder named
+     "New Folder", which is not a valid query and will fail.
