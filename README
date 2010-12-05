@@ -79,12 +79,8 @@ INSTALLATION (ubuntu)
       CREATING TABLES
       ~~~~~~~~~~~~~~~
 
-      NOTE: While writing this, I realised that the python module name is
-            really bad. I'm still learing setuptools... Put this into the
-            "alpha shenanigans" drawer...
-
       # python
-      # import model
+      # from metafilter import model
       # model.metadata.create_all()
       # quit()
 

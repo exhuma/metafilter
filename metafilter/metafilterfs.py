@@ -4,8 +4,8 @@ import fuse
 import stat
 import errno
 from time import mktime
-from model import Node, Query, Session
-from model.nodes import from_query, TIME_PATTERN
+from metafilter.model import Node, Query, Session
+from metafilter.model.nodes import from_query, TIME_PATTERN
 from os.path import sep, join, exists
 import os
 import logging

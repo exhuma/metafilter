@@ -50,6 +50,6 @@ def uri_to_ltree(uri):
    ltree = ltree.replace(sep, ".")
    return ltree
 
-from model.nodes import Node
-from model.queries import Query
+from metafilter.model.nodes import Node
+from metafilter.model.queries import Query
 

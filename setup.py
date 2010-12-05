@@ -3,7 +3,7 @@ setup(
    name = "metafilter",
    version = "0.1",
    packages = find_packages(),
-   scripts = ['webserve.py', 'rescan_folder.py', 'metafilterfs.py'],
+   scripts = ['metafilter/webserve.py', 'metafilter/rescan_folder.py', 'metafilter/metafilterfs.py'],
    install_requires = [
       'Flask==0.6',
       'sqlalchemy==0.6.5',

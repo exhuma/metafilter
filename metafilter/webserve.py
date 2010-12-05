@@ -1,5 +1,5 @@
 from flask import Flask, g, render_template
-from model import Node, Query, Session
+from metafilter.model import Node, Query, Session
 app = Flask(__name__)
 
 class FlaskConfig(object):
