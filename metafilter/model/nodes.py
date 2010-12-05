@@ -38,6 +38,7 @@ def update_nodes_from_path(sess, root):
          attached_file = sess.merge(detached_file)
          try:
             sess.add(attached_file)
+            LOG.debug("Added %s" % attached_file)
          except Exception, exc:
             LOG.exception(exc)
 
@@ -59,6 +60,7 @@ def update_nodes_from_path(sess, root):
          try:
             attached_file = sess.merge(detached_file)
             sess.add(attached_file)
+            LOG.debug("Added %s" % attached_file)
          except Exception, exc:
             LOG.exception(exc)
 
