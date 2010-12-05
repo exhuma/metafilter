@@ -4,6 +4,7 @@ import fuse
 import stat
 import errno
 from time import mktime
+import metafilter.model
 from metafilter.model import Node, Query, Session
 from metafilter.model.nodes import from_query, TIME_PATTERN
 from os.path import sep, join, exists
@@ -205,6 +206,7 @@ class MetaFilterFS(LoggingFuse):
       self.log.info("*** Fuse Initialised")
       self.sess = Session()
       self.root = '/'
+      self.dsn = "sqlite://"
 
    def setup_logging(self):
       file_out = logging.handlers.RotatingFileHandler("/tmp/fuse.log", maxBytes=100000)
@@ -448,7 +450,15 @@ def main():
          metavar="PATH",
          default='/',
          help="mount filtered filesystem from under PATH [default: %default]")
+   server.parser.add_option(
+         mountopt="dsn",
+         metavar="DSN",
+         default='sqlite://',
+         help="The database connection DSN. See sqlalchemy docs for it's format [default: %default]")
    server.parse(values=server, errex=1)
+
+   metafilter.model.set_dsn(server.dsn)
+
    try:
       if server.fuse_args.mount_expected():
          os.chdir(server.root)

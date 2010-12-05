@@ -6,10 +6,8 @@ from hashlib import md5
 import re
 
 NON_LTREE = re.compile(r'[^a-zA-Z0-9/]')
-engine = create_engine('postgresql://filemeta:8769KUU6jyh..87236-@192.168.1.1/filemeta', echo=True)
 metadata = MetaData()
-metadata.bind = engine
-Session = sessionmaker(bind=engine)
+Session = sessionmaker()
 
 def uri_depth(uri):
    "determines the depth of a uri"
@@ -49,6 +47,11 @@ def uri_to_ltree(uri):
    ltree = NON_LTREE.sub("_", ltree)
    ltree = ltree.replace(sep, ".")
    return ltree
+
+def set_dsn(dsn):
+   engine = create_engine(dsn)
+   metadata.bind = engine
+   Session.bind = engine
 
 from metafilter.model.nodes import Node
 from metafilter.model.queries import Query

@@ -37,15 +37,6 @@ RECOMMENDED
 INSTALLATION (ubuntu)
 =====================
 
-   PRELIMINARY NOTE:
-      Currently the database connection info is *hardcoded* inside
-      'model/__init__.py'! This will be externalised at some point. But for
-      now, consider this "early alpha shenanigans".
-
-      I assume, people that will be using this will be able to make the
-      necessary adaptations. If you need to, then do all changes somewhere
-      before the "python setup.py install" step!
-
    sudo aptitude install postgresql postgresql-contrib libfuse-dev python-setuptools git-core
    sudo easy_install virtualenv
    git clone https://github.com/exhuma/metafilter.git
@@ -80,9 +71,10 @@ INSTALLATION (ubuntu)
       ~~~~~~~~~~~~~~~
 
       # python
-      # from metafilter import model
-      # model.metadata.create_all()
-      # quit()
+      >>> from metafilter import model
+      >>> model.set_dsn('postgresql://filemeta:8769KUU6jyh..87236-@192.168.1.1/filemeta')
+      >>> model.metadata.create_all()
+      >>> quit()
 
 USAGE
 =====
@@ -95,7 +87,9 @@ When mounting the FUSE, you need to give it a "root" folder on which to
 operate. This will usually be the same you scanned, but can also be a subfolder
 whithin the scanned folder:
 
-   # metafilterfs.py <mountpoint> -o root=/home/me
+   # metafilterfs.py <mountpoint> \
+         -o root=/home/me \
+         -o dsn="postgresql://filemeta:8769KUU6jyh..87236-@192.168.1.1/filemeta"
 
 By default, no queries are yet defined. To create a sample query:
 
