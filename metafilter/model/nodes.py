@@ -55,6 +55,7 @@ def update_nodes_from_path(sess, root):
             LOG.debug("Added %s" % attached_file)
          except Exception, exc:
             LOG.exception(exc)
+      sess.commit()
 
       for file in files:
          path = abspath(join(root, file))
@@ -191,7 +192,7 @@ def contains_text(sess, parent_uri=None, text=None):
 
 def from_query(sess, parent_uri, query):
    match = TIME_PATTERN.match(query)
-   if  match:
+   if  match and match.groups() != (None, None, None):
       groups = match.groups()
       if groups[0] and not groups[1] and not groups[2]:
          # matches 'yyyy-mm-dd'

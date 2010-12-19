@@ -297,8 +297,10 @@ class MetaFilterFS(LoggingFuse):
                   entry.type = stat.S_IFREG
                entries.append(entry)
          for r in entries:
-             self.log.debug("listing %r" % r)
-             yield r
+            if not r.name:
+               continue
+            self.log.debug("listing %r" % r)
+            yield r
       except GeneratorExit:
          raise
       except Exception, ex:
@@ -321,10 +323,10 @@ class MetaFilterFS(LoggingFuse):
    def mkdir(self, path, mode):
       self.log.debug("* mkdir %s %s" % (path, mode))
       leaf = path.split(sep)[-1]
-      groups = TIME_PATTERN.match(leaf).groups()
-      if groups == (None, None, None):
-         self.log.error("Path %s is not a valid query expression!", path)
-         return -errno.EINVAL
+      #groups = TIME_PATTERN.match(leaf).groups()
+      #if groups == (None, None, None):
+      #   self.log.error("Path %s is not a valid query expression!", path)
+      #   return -errno.EINVAL
       q = Query(leaf)
       self.sess.add(q)
       self.sess.commit()
