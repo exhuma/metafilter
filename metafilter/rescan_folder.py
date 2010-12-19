@@ -13,7 +13,7 @@ def main():
    (options, args) = parser.parse_args()
 
    import logging
-   logging.basicConfig(level=logging.DEBUG)
+   logging.basicConfig(level=logging.INFO)
 
    if not options.dsn:
       print >> sys.stderr, "The '-d/--dsn' option is required!"

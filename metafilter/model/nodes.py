@@ -1,10 +1,13 @@
-from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, DateTime, Boolean, UniqueConstraint, Sequence
+from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, DateTime, Boolean, UniqueConstraint, Sequence, select, func
 from sqlalchemy.orm import mapper, aliased
 from sqlalchemy.sql import func, distinct
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from os.path import sep, isdir, basename
 from datetime import datetime, timedelta
 import re
+
+import parsedatetime.parsedatetime as pdt
+import parsedatetime.parsedatetime_consts as pdc
 
 import logging
 
@@ -21,13 +24,19 @@ nodes_table = Table('node', metadata,
 
 TIME_PATTERN=re.compile(r'(\d{4}-\d{2}-\d{2})?(t)?(\d{4}-\d{2}-\d{2})?')
 LOG = logging.getLogger(__name__)
+PCONST = pdc.Constants()
+CALENDAR = pdt.Calendar(PCONST)
 
 def update_nodes_from_path(sess, root):
    import os
    import mimetypes
    mimetypes.init()
    from os.path import isfile, join, abspath, sep
-   from datetime import datetime
+
+   root_ltree = uri_to_ltree(root)
+   oldest_refresh = select([func.max(Node.updated)])
+   oldest_refresh = oldest_refresh.where( Node.path.op("<@")(root_ltree) )
+   oldest_refresh = oldest_refresh.execute().first()[0]
 
    for root, dirs, files in os.walk(root):
 
@@ -35,7 +44,12 @@ def update_nodes_from_path(sess, root):
       for node in root.split(sep):
          detached_file = Node(root)
          detached_file.mimetype = "other/directory"
-         attached_file = sess.merge(detached_file)
+
+         try:
+            attached_file = sess.merge(detached_file)
+         except Exception, exc:
+            LOG.exception(exc)
+
          try:
             sess.add(attached_file)
             LOG.debug("Added %s" % attached_file)
@@ -49,12 +63,18 @@ def update_nodes_from_path(sess, root):
             continue
 
          mod_time = datetime.fromtimestamp(os.stat(path).st_mtime)
+         create_time = datetime.fromtimestamp(os.stat(path).st_ctime)
+
+         # ignore files which have not been modified since last scan
+         if oldest_refresh and mod_time < oldest_refresh:
+            continue
+
          mimetype, _ = mimetypes.guess_type(path)
 
          detached_file = Node(path)
          detached_file.md5 = file_md5(path)
          detached_file.mimetype = mimetype
-         detached_file.created = mod_time
+         detached_file.created = create_time
          detached_file.updated = mod_time
 
          try:
@@ -171,29 +191,33 @@ def contains_text(sess, parent_uri=None, text=None):
 
 def from_query(sess, parent_uri, query):
    match = TIME_PATTERN.match(query)
-   if not match:
-      return []
+   if  match:
+      groups = match.groups()
+      if groups[0] and not groups[1] and not groups[2]:
+         # matches 'yyyy-mm-dd'
+         end_date = datetime.strptime(groups[0], "%Y-%m-%d")
+         return older_than(sess, parent_uri, end_date)
+      elif groups[0] and groups[1] == "t" and not groups[2]:
+         # matches 'yyyy-mm-ddt'
+         start_date = datetime.strptime(groups[0], "%Y-%m-%d")
+         return newer_than(sess, parent_uri, start_date)
+      elif not groups[0] and groups[1] == "t" and groups[2]:
+         # matches 'tyyyy-mm-dd'
+         end_date = datetime.strptime(groups[2], "%Y-%m-%d")
+         return older_than(sess, parent_uri, end_date)
+      elif groups[0] and groups[1] == "t" and groups[2]:
+         # matches 'yyyy-mm-ddtyyyy-mm-dd'
+         start_date = datetime.strptime(groups[0], "%Y-%m-%d")
+         end_date = datetime.strptime(groups[2], "%Y-%m-%d")
+         return between(sess, parent_uri, start_date, end_date)
+      else:
+         return []
 
-   groups = match.groups()
-   if groups[0] and not groups[1] and not groups[2]:
-      # matches 'yyyy-mm-dd'
-      end_date = datetime.strptime(groups[0], "%Y-%m-%d")
-      return older_than(sess, parent_uri, end_date)
-   elif groups[0] and groups[1] == "t" and not groups[2]:
-      # matches 'yyyy-mm-ddt'
-      start_date = datetime.strptime(groups[0], "%Y-%m-%d")
-      return newer_than(sess, parent_uri, start_date)
-   elif not groups[0] and groups[1] == "t" and groups[2]:
-      # matches 'tyyyy-mm-dd'
-      end_date = datetime.strptime(groups[2], "%Y-%m-%d")
-      return older_than(sess, parent_uri, end_date)
-   elif groups[0] and groups[1] == "t" and groups[2]:
-      # matches 'yyyy-mm-ddtyyyy-mm-dd'
-      start_date = datetime.strptime(groups[0], "%Y-%m-%d")
-      end_date = datetime.strptime(groups[2], "%Y-%m-%d")
-      return between(sess, parent_uri, start_date, end_date)
-   else:
-      return []
+   timetuple = CALENDAR.parse(query)
+   start_date = datetime(*timetuple[0][0:6])
+   return newer_than(sess, parent_uri, start_date)
+
+   return []
 
 class Node(object):
 
