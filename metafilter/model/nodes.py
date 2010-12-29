@@ -27,16 +27,19 @@ LOG = logging.getLogger(__name__)
 PCONST = pdc.Constants()
 CALENDAR = pdt.Calendar(PCONST)
 
-def update_nodes_from_path(sess, root):
+def update_nodes_from_path(sess, root, oldest_refresh=None):
    import os
    import mimetypes
    mimetypes.init()
    from os.path import isfile, join, abspath, sep
 
    root_ltree = uri_to_ltree(root)
-   oldest_refresh = select([func.max(Node.updated)])
-   oldest_refresh = oldest_refresh.where( Node.path.op("<@")(root_ltree) )
-   oldest_refresh = oldest_refresh.execute().first()[0]
+   if not oldest_refresh:
+      oldest_refresh = select([func.max(Node.updated)])
+      oldest_refresh = oldest_refresh.where( Node.path.op("<@")(root_ltree) )
+      oldest_refresh = oldest_refresh.execute().first()[0]
+
+   LOG.info("Rescanning files that changed since %s" % oldest_refresh)
 
    for root, dirs, files in os.walk(root):
 
@@ -54,16 +57,22 @@ def update_nodes_from_path(sess, root):
             sess.add(attached_file)
             LOG.debug("Added %s" % attached_file)
          except Exception, exc:
-            LOG.exception(exc)
-      sess.commit()
+            LOG.error(str(exc))
 
+      if 'Thumbs.db' in files:
+         files.remove('Thumbs.db')
+
+      scanned_files = 0
       for file in files:
          path = abspath(join(root, file))
          if not isfile(path):
             LOG.warning("Not a regular file: %r" % path)
             continue
 
-         mod_time = datetime.fromtimestamp(os.stat(path).st_mtime)
+         mod_time = max(
+               datetime.fromtimestamp(os.stat(path).st_mtime),
+               datetime.fromtimestamp(os.stat(path).st_ctime)
+               )
          create_time = datetime.fromtimestamp(os.stat(path).st_ctime)
 
          # ignore files which have not been modified since last scan
@@ -73,7 +82,7 @@ def update_nodes_from_path(sess, root):
          mimetype, _ = mimetypes.guess_type(path)
 
          detached_file = Node(path)
-         detached_file.md5 = file_md5(path)
+         #detached_file.md5 = file_md5(path)
          detached_file.mimetype = mimetype
          detached_file.created = create_time
          detached_file.updated = mod_time
@@ -81,11 +90,14 @@ def update_nodes_from_path(sess, root):
          try:
             attached_file = sess.merge(detached_file)
             sess.add(attached_file)
-            LOG.debug("Added %s" % attached_file)
+            LOG.info("Added %s" % attached_file)
          except Exception, exc:
-            LOG.exception(exc)
+            LOG.error(str(exc))
+         scanned_files += 1
 
-      sess.commit()
+      if scanned_files > 0:
+         LOG.info("commit")
+         sess.commit()
 
       if 'CVS' in dirs:
          dirs.remove('CVS')  # don't visit CVS directories
