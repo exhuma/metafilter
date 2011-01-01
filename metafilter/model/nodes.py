@@ -51,6 +51,8 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
          try:
             attached_file = sess.merge(detached_file)
          except Exception, exc:
+            if str(exc).find("current transaction is aborted") > -1:
+               sess.commit()
             LOG.exception(exc)
 
          try:
