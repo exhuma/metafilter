@@ -7,11 +7,21 @@ from datetime import datetime, timedelta
 
 import logging
 
+from metafilter.model import memoized
+
 query_table = Table('query', metadata,
    Column('query', String, nullable=False, primary_key=True),
 )
 
 LOG = logging.getLogger(__name__)
+
+@memoized
+def all(session):
+   return session.query(Query).order_by(Query.query)
+
+@memoized
+def by_query(session, query):
+   return session.query(Query).filter(Query.query == query).first()
 
 class Query(object):
 

@@ -6,12 +6,14 @@ import errno
 from time import mktime
 import metafilter.model
 from metafilter.model import Node, Query, Session
-from metafilter.model.nodes import from_query, TIME_PATTERN
+from metafilter.model.nodes import from_query, by_uri, TIME_PATTERN
+import metafilter.model.queries as queries
 from os.path import sep, join, exists
 import os
 import logging
 import logging.handlers
 import sys
+from datetime import datetime, timedelta
 
 if not hasattr(fuse, '__version__'):
     raise RuntimeError, \
@@ -201,7 +203,7 @@ class MetaFilterFS(LoggingFuse):
 
    def __init__(self, *args, **kwargs):
       fuse.Fuse.__init__(self, *args, **kwargs)
-      self.log = logging.getLogger(__name__)
+      self.log = logging.getLogger("metafilter")
       self.setup_logging()
       self.log.info("*** Fuse Initialised")
       self.sess = Session()
@@ -242,7 +244,7 @@ class MetaFilterFS(LoggingFuse):
 
       try:
          if self.depth(path) == 1:
-            node = self.sess.query(Query).filter(Query.query == self.path_items(path)[0]).first()
+            node = queries.by_query(self.sess, self.path_items(path)[0])
             if not node:
                return -errno.ENOENT
             self.log.debug("Node path of length 1 => %s" % self.path_items(path)[0])
@@ -254,9 +256,7 @@ class MetaFilterFS(LoggingFuse):
             abspath = self.abspath(path)
             if not exists(abspath):
                return -errno.ENOENT
-            qry = self.sess.query(Node)
-            qry = qry.filter( Node.uri == abspath )
-            node = qry.first()
+            node = by_uri(self.sess, abspath)
             if node:
                return os.lstat(abspath)
             return st
@@ -274,9 +274,7 @@ class MetaFilterFS(LoggingFuse):
                fuse.Direntry('..') ]
          if path == '/':
             # list the available queries first
-            qry = self.sess.query(Query).order_by(Query.query)
-            self.log.debug(qry)
-            for row in qry:
+            for row in queries.all(self.sess):
                self.log.debug("Adding %s" % row)
                entries.append( fuse.Direntry(row.query.encode("utf8", "replace")) )
          else:
@@ -299,7 +297,7 @@ class MetaFilterFS(LoggingFuse):
          for r in entries:
             if not r.name:
                continue
-            self.log.debug("listing %r" % r)
+            self.log.debug("listing %s" % r)
             yield r
       except GeneratorExit:
          raise

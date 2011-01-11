@@ -1,6 +1,7 @@
 from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, DateTime, Boolean, UniqueConstraint, Sequence, select, func
 from sqlalchemy.orm import mapper, aliased
 from sqlalchemy.sql import func, distinct
+from sqlalchemy.exc import IntegrityError, DataError
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from os.path import sep, isdir, basename
 from datetime import datetime, timedelta
@@ -10,6 +11,8 @@ import parsedatetime.parsedatetime as pdt
 import parsedatetime.parsedatetime_consts as pdc
 
 import logging
+
+from metafilter.model import memoized
 
 nodes_table = Table('node', metadata,
    Column('uri', Unicode, nullable=False, primary_key=True),
@@ -26,6 +29,12 @@ TIME_PATTERN=re.compile(r'(\d{4}-\d{2}-\d{2})?(t)?(\d{4}-\d{2}-\d{2})?')
 LOG = logging.getLogger(__name__)
 PCONST = pdc.Constants()
 CALENDAR = pdt.Calendar(PCONST)
+
+@memoized
+def by_uri(session, uri):
+   qry = session.query(Node)
+   qry = qry.filter( Node.uri == uri )
+   return qry.first()
 
 def update_nodes_from_path(sess, root, oldest_refresh=None):
    import os
@@ -49,17 +58,25 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
          detached_file.mimetype = "other/directory"
 
          try:
+            LOG.debug("Merging %s" % detached_file)
             attached_file = sess.merge(detached_file)
-         except Exception, exc:
-            if str(exc).find("current transaction is aborted") > -1:
-               sess.commit()
-            LOG.exception(exc)
-
-         try:
             sess.add(attached_file)
             LOG.debug("Added %s" % attached_file)
-         except Exception, exc:
-            LOG.error(str(exc))
+            sess.commit()
+         except IntegrityError, exc:
+            if exc.message == '(IntegrityError) duplicate key value violates unique constraint "node_path"\n':
+               LOG.warning(exc.message)
+               LOG.warning(exc.params)
+               sess.rollback()
+            else:
+               raise
+         except DataError, exc:
+            if "(DataError) invalid byte sequence for encoding" in exc.message:
+               LOG.warning(exc.message)
+               LOG.warning(exc.params)
+               sess.rollback()
+            else:
+               raise
 
       if 'Thumbs.db' in files:
          files.remove('Thumbs.db')
@@ -204,6 +221,7 @@ def contains_text(sess, parent_uri=None, text=None):
 
    return qry
 
+@memoized
 def from_query(sess, parent_uri, query):
    match = TIME_PATTERN.match(query)
    if  match and match.groups() != (None, None, None):
