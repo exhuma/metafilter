@@ -1,4 +1,4 @@
-from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, DateTime, Boolean, UniqueConstraint, Sequence, select, func
+from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, DateTime, Boolean, UniqueConstraint, Sequence, select, func, update
 from sqlalchemy.orm import mapper, aliased
 from sqlalchemy.sql import func, distinct
 from sqlalchemy.exc import IntegrityError, DataError
@@ -22,6 +22,7 @@ nodes_table = Table('node', metadata,
    Column('created', DateTime),
    Column('updated', DateTime),
    Column('to_purge', Boolean, default=False),
+   Column('rating', Integer, default=0),
    UniqueConstraint('uri', name='unique_uri')
 )
 
@@ -221,6 +222,44 @@ def contains_text(sess, parent_uri=None, text=None):
 
    return qry
 
+def rated(sess, parent_uri, op, value):
+
+   LOG.debug("Finding entries rated %s %2d in %s" % (op, value, parent_uri))
+
+   parent_path = uri_to_ltree(parent_uri)
+   depth = uri_depth(parent_uri)
+
+   stmt = sess.query(
+         distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
+         )
+
+   if op == 'gt':
+      stmt = stmt.filter(Node.rating > value)
+   elif op == 'ge':
+      stmt = stmt.filter(Node.rating >= value)
+   elif op == 'lt':
+      stmt = stmt.filter(Node.rating < value)
+   elif op == 'le':
+      stmt = stmt.filter(Node.rating <= value)
+   elif op == 'eq':
+      stmt = stmt.filter(Node.rating == value)
+   elif op == 'ne':
+      stmt = stmt.filter(Node.rating != value)
+
+   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
+   stmt = stmt.subquery()
+   qry = sess.query( Node )
+   qry = qry.filter( Node.path.in_(stmt) )
+   qry = qry.order_by( func.subpath(Node.path, -1, 1) )
+
+   return qry
+
+def set_rating(path, value):
+   upd = nodes_table.update()
+   upd = upd.values(rating=value)
+   upd = upd.where(nodes_table.c.path==path)
+   upd.execute()
+
 @memoized
 def from_query(sess, parent_uri, query):
    match = TIME_PATTERN.match(query)
@@ -250,7 +289,20 @@ def from_query(sess, parent_uri, query):
    start_date = datetime(*timetuple[0][0:6])
    return newer_than(sess, parent_uri, start_date)
 
-   return []
+def from_query2(sess, query_path):
+   query_nodes = query_path.split('/')
+   query_type = query_nodes.pop(0)
+
+   if query_type == 'date':
+      query = query_nodes.pop(0)
+      parent_uri = '/'.join(query_nodes)
+      return from_query(sess, "/%s"%parent_uri, query)
+
+   elif query_type == 'rating':
+      op = query_nodes.pop(0)
+      value = int(query_nodes.pop(0))
+      parent_uri = '/'.join(query_nodes)
+      return rated(sess, "/%s"%parent_uri, op, value)
 
 class Node(object):
 

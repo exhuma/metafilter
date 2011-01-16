@@ -7,14 +7,19 @@
             <td><a href="{{url_for('show_entries', query=query, parent_path=row.uri[1:])}}">{{ row.basename }}</a></td>
             <td>&nbsp;</td>
             <td>&nbsp;</td>
-            <td>&nbsp;</td>
          </tr>
       {% else %}
          <tr>
             <td>{{ row.basename }}</td>
+            <td>
+               <a href="{{ url_for('set_rating', path=row.path, value=1) }}">1</a>&nbsp;
+               <a href="{{ url_for('set_rating', path=row.path, value=2) }}">2</a>&nbsp;
+               <a href="{{ url_for('set_rating', path=row.path, value=3) }}">3</a>&nbsp;
+               <a href="{{ url_for('set_rating', path=row.path, value=4) }}">4</a>&nbsp;
+               <a href="{{ url_for('set_rating', path=row.path, value=5) }}">5</a>
+            </td>
             <td>{{ row.created }}</td>
             <td>{{ row.updated }}</td>
-            <td>{{ row.md5 }}</td>
          </tr>
    {% endif %}
    {% else %}
