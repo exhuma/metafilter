@@ -1,5 +1,9 @@
-from flask import Flask, g, render_template
+from flask import Flask, g, render_template, request, redirect, make_response
 from metafilter.model import Node, Query, Session, set_dsn
+from metafilter.model import queries, nodes
+import logging
+
+LOG = logging.getLogger(__name__)
 app = Flask(__name__)
 
 class FlaskConfig(object):
@@ -27,17 +31,37 @@ def show_entries(parent_path=None, query=None):
    result = from_query(g.sess, parent_path, query)
    return render_template("entries.html", entries=result, query=query)
 
+@app.route('/query')
 @app.route('/query/<path:query>')
-def query(query):
-   from metafilter.model.nodes import from_query2
-   result = from_query2(g.sess, query)
+def query(query="root"):
+   from metafilter.model.nodes import from_incremental_query
+   result = from_incremental_query(g.sess, query)
    return render_template("entries.html", entries=result, query=query)
 
-@app.route('/set_rating/<path>/<int:value>')
-def set_rating(path, value):
+@app.route('/thumbnail/<path>')
+def thumbnail(path):
+   import Image
+   from cStringIO import StringIO
+   node = nodes.by_path(g.sess, path)
+   im = Image.open(node.uri)
+   im.thumbnail((128, 128), Image.ANTIALIAS)
+   tmp = StringIO()
+   im.save(tmp, "JPEG")
+   response = make_response(tmp.getvalue())
+   response.headers['Content-Type'] = 'image/jpeg'
+   return response
+
+@app.route('/set_rating', methods=["POST"])
+def set_rating():
    from metafilter.model.nodes import set_rating
-   set_rating(path, value)
+   set_rating(request.form["path"], int(request.form['value']))
    return "OK"
+
+@app.route('/new_query', methods=["POST"])
+def new_query():
+   qry = Query(request.form['query'])
+   g.sess.add(qry)
+   return redirect(request.referrer)
 
 @app.route("/")
 def list_queries():
@@ -46,7 +70,20 @@ def list_queries():
 
    return render_template("queries.html", saved_queries=qry)
 
+@app.route("/save_query", methods=["POST"])
+def save_query():
+   old_query = request.form['id']
+   new_query = request.form['value']
+   queries.update( g.sess, old_query, new_query )
+   return new_query
+
+@app.route("/delete_query/<query>")
+def delete_query(query):
+   queries.delete( g.sess, query )
+   return "OK"
+
 if __name__ == "__main__":
    app.debug = True
+   logging.basicConfig(level=logging.DEBUG)
    set_dsn("postgresql://filemeta:filemeta@localhost/filemeta_old")
    app.run(host="0.0.0.0", port=8181)

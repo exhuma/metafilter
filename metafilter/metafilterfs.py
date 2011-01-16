@@ -6,7 +6,7 @@ import errno
 from time import mktime
 import metafilter.model
 from metafilter.model import Node, Query, Session
-from metafilter.model.nodes import from_query, by_uri, TIME_PATTERN
+from metafilter.model.nodes import from_query, by_uri, TIME_PATTERN, from_incremental_query, map_to_fs
 import metafilter.model.queries as queries
 from os.path import sep, join, exists
 import os
@@ -171,7 +171,7 @@ class LoggingFuse(fuse.Fuse):
        return -errno.ENOSYS
 
     def statfs ( self ):
-       self.log.debug("Called unimplemented statfs on %s with %r" % (path, locals()))
+       self.log.debug("Called unimplemented statfs")
        return -errno.ENOSYS
 
     def symlink ( self, targetPath, linkPath ):
@@ -211,17 +211,15 @@ class MetaFilterFS(LoggingFuse):
       self.dsn = "sqlite://"
 
    def setup_logging(self):
+      stdout = logging.StreamHandler()
+      stdout.setLevel(logging.DEBUG)
       file_out = logging.handlers.RotatingFileHandler("/tmp/fuse.log", maxBytes=100000)
       formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
       file_out.setFormatter(formatter)
+      stdout.setFormatter(formatter)
       self.log.addHandler(file_out)
+      self.log.addHandler(stdout)
       self.log.setLevel(logging.DEBUG)
-
-   def abspath(self, relpath):
-      node_path = self.path_items(relpath)
-      out = join( self.root, *node_path[1:] )
-      self.log.debug("Converted %s to %s" % ( relpath, out ))
-      return out
 
    def depth(self, relpath):
       return len(self.path_items(relpath))
@@ -236,24 +234,18 @@ class MetaFilterFS(LoggingFuse):
       if path.startswith('/.Trash'):
          return -errno.ENOENT
 
+      # remove leading '/'
+      path = path[1:]
+
       self.log.debug("Retrieving stat for path %r => %s" % (path, self.path_items(path)))
 
-      if path == "/":
-         st = MyStat()
-         return st
-
       try:
-         if self.depth(path) == 1:
-            node = queries.by_query(self.sess, self.path_items(path)[0])
-            if not node:
-               return -errno.ENOENT
-            self.log.debug("Node path of length 1 => %s" % self.path_items(path)[0])
+         fs_path = map_to_fs(path)
+         self.log.debug( 'Mapped %r to %r' % (path, fs_path) )
+         if fs_path:
+            self.log.debug("Node maps to filesystem => query system stat")
             st = MyStat()
-            return st
-         elif self.depth(path) > 1:
-            self.log.debug("Node path of length > 1 => query system stat")
-            st = MyStat()
-            abspath = self.abspath(path)
+            abspath = map_to_fs(path)
             if not exists(abspath):
                return -errno.ENOENT
             node = by_uri(self.sess, abspath)
@@ -261,12 +253,34 @@ class MetaFilterFS(LoggingFuse):
                return os.lstat(abspath)
             return st
          else:
-            return -errno.ENOENT
+            st = MyStat()
+            return st
       except Exception, ex:
          self.log.exception(ex)
       return -errno.ENOSYS
 
    def readdir(self, path, offset):
+      self.log.debug("readdir %r with offset %r" % (path, offset))
+
+      # default (required) entries
+      entries = [ fuse.Direntry('.'), fuse.Direntry('..') ]
+
+      # remove leading '/'
+      path = path[1:]
+
+      # split into path elements
+      for node in from_incremental_query(self.sess, path):
+         entries.append(fuse.Direntry(node.basename.encode(
+            sys.getfilesystemencoding(), 'replace')))
+
+      # generate the output
+      for r in entries:
+         if not r.name:
+            continue
+         self.log.debug("listing %s" % r)
+         yield r
+
+   def readdir_old(self, path, offset):
       self.log.debug("readdir %r with offset %r" % (path, offset))
       try:
          entries = [
@@ -343,7 +357,7 @@ class MetaFilterFS(LoggingFuse):
 
          self.log = logging.getLogger("%s.%s" % (__name__, "MetaFile"))
          try:
-            path = join(".", *path.split(sep)[2:])
+            path = map_to_fs(path[1:])
             self.log.debug("Opening file at path %s in %s" % (path, os.getcwd()))
             self.file = os.fdopen(os.open(path, flags, *mode),
                                   flag2mode(flags))

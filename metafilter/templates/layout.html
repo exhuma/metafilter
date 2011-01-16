@@ -1,12 +1,22 @@
 <!doctype html>
-<title>MetaFilter</title>
-<link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
-<div class=page>
-  <h1>MetaFilter</h1>
-  <div class=metanav>
-  </div>
-  {% for message in get_flashed_messages() %}
-    <div class=flash>{{ message }}</div>
-  {% endfor %}
-  {% block body %}{% endblock %}
-</div>
+<html>
+   <head>
+      <title>MetaFilter</title>
+      <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Anonymous+Pro|Orbitron">
+      <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
+      <script type="text/javascript" src="{{ url_for('static', filename='jquery-1.4.4.min.js') }}"></script>
+      <script type="text/javascript" src="{{ url_for('static', filename='jquery.jeditable.mini.js') }}"></script>
+      <script type="text/javascript" src="{{ url_for('static', filename='metafilter.js') }}"></script>
+   </head>
+   <body>
+      <div class=page>
+        <h1>MetaFilter</h1>
+        <div class=metanav>
+        </div>
+        {% for message in get_flashed_messages() %}
+          <div class=flash>{{ message }}</div>
+        {% endfor %}
+        {% block body %}{% endblock %}
+      </div>
+   </body>
+</html>

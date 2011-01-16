@@ -2,9 +2,16 @@
 {% block body %}
   <ul class=entries>
   {% for qry in saved_queries %}
-  <li><a href="{{ url_for('show_entries', query=qry.query) }}">{{ qry.query }}</a>
+  <li><span id="{{qry.query}}" class='query-edit'>{{ qry.query }}</span>
+    &nbsp;-&nbsp;<a href="{{ url_for('query', query=qry.query) }}">go</a>
+    &nbsp;-&nbsp;<a href="{{ url_for('delete_query', query=qry.query) }}">delete</a>
+  </li>
   {% else %}
-    <li><em>Unbelievable.  No entries here so far</em>
+  <li><em>Unbelievable.  No entries here so far</em></li>
   {% endfor %}
   </ul>
+  <hr />
+  <form action='/new_query' method="POST" class='query-edit-box'>
+     Query: <input name="query" type="text" /><input type='submit' />
+  </form>
 {% endblock %}

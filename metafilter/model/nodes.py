@@ -3,6 +3,7 @@ from sqlalchemy.orm import mapper, aliased
 from sqlalchemy.sql import func, distinct
 from sqlalchemy.exc import IntegrityError, DataError
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
+from metafilter.model.queries import Query, query_table
 from os.path import sep, isdir, basename
 from datetime import datetime, timedelta
 import re
@@ -35,6 +36,11 @@ CALENDAR = pdt.Calendar(PCONST)
 def by_uri(session, uri):
    qry = session.query(Node)
    qry = qry.filter( Node.uri == uri )
+   return qry.first()
+
+def by_path(session, path):
+   qry = session.query(Node)
+   qry = qry.filter( Node.path == path )
    return qry.first()
 
 def update_nodes_from_path(sess, root, oldest_refresh=None):
@@ -222,7 +228,109 @@ def contains_text(sess, parent_uri=None, text=None):
 
    return qry
 
-def rated(sess, parent_uri, op, value):
+def rated(sess, nodes):
+
+   query_string = 'rating/%s' % str.join('/', nodes)
+
+   if not nodes or len(nodes) < 2:
+      # no details known yet. Find appropriate queries
+      output = []
+      stmt = sess.query(Query.query)
+      LOG.debug('Listing nodes starting with %r' % query_string)
+      stmt = stmt.filter(query_table.c.query.startswith(query_string))
+      stmt = stmt.order_by(query_table.c.query)
+      for row in stmt:
+         sub_nodes = row.query.split('/')
+         # we're in the case where the initial nodes were empty. We only return
+         # the next element
+         output.append(DummyNode(sub_nodes[len(nodes)+1]))
+      return output
+
+   op = nodes.pop(0)
+   value = int(nodes.pop(0))
+   parent_uri = '/'.join(nodes)
+
+   LOG.debug("Finding entries rated %s %2d in %s" % (op, value, parent_uri))
+
+   parent_path = uri_to_ltree(parent_uri)
+   depth = uri_depth(parent_uri)
+
+   stmt = sess.query(
+         distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
+         )
+
+   if op == 'gt':
+      stmt = stmt.filter(Node.rating > value)
+   elif op == 'ge':
+      stmt = stmt.filter(Node.rating >= value)
+   elif op == 'lt':
+      stmt = stmt.filter(Node.rating < value)
+   elif op == 'le':
+      stmt = stmt.filter(Node.rating <= value)
+   elif op == 'eq':
+      stmt = stmt.filter(Node.rating == value)
+   elif op == 'ne':
+      stmt = stmt.filter(Node.rating != value)
+
+   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
+   stmt = stmt.subquery()
+   qry = sess.query( Node )
+   qry = qry.filter( Node.path.in_(stmt) )
+   qry = qry.order_by( func.subpath(Node.path, -1, 1) )
+
+   return qry
+
+def dated(sess, nodes):
+
+   query_string = 'date/%s' % str.join('/', nodes)
+
+   if not nodes or len(nodes) < 1:
+      # no details known yet. Find appropriate queries
+      output = []
+      stmt = sess.query(Query.query)
+      LOG.debug('Listing nodes starting with %r' % query_string)
+      stmt = stmt.filter(query_table.c.query.startswith(query_string))
+      stmt = stmt.order_by(query_table.c.query)
+      for row in stmt:
+         sub_nodes = row.query.split('/')
+         # we're in the case where the initial nodes were empty. We only return
+         # the next element
+         output.append(DummyNode(sub_nodes[len(nodes)+1]))
+      return output
+
+   date_string = nodes.pop(0)
+   parent_uri = '/'.join(nodes)
+
+   LOG.debug("Finding entries using date string %s" % (date_string))
+
+   match = TIME_PATTERN.match(date_string)
+   if  match and match.groups() != (None, None, None):
+      groups = match.groups()
+      if groups[0] and not groups[1] and not groups[2]:
+         # matches 'yyyy-mm-dd'
+         end_date = datetime.strptime(groups[0], "%Y-%m-%d")
+         return older_than(sess, parent_uri, end_date)
+      elif groups[0] and groups[1] == "t" and not groups[2]:
+         # matches 'yyyy-mm-ddt'
+         start_date = datetime.strptime(groups[0], "%Y-%m-%d")
+         return newer_than(sess, parent_uri, start_date)
+      elif not groups[0] and groups[1] == "t" and groups[2]:
+         # matches 'tyyyy-mm-dd'
+         end_date = datetime.strptime(groups[2], "%Y-%m-%d")
+         return older_than(sess, parent_uri, end_date)
+      elif groups[0] and groups[1] == "t" and groups[2]:
+         # matches 'yyyy-mm-ddtyyyy-mm-dd'
+         start_date = datetime.strptime(groups[0], "%Y-%m-%d")
+         end_date = datetime.strptime(groups[2], "%Y-%m-%d")
+         return between(sess, parent_uri, start_date, end_date)
+      else:
+         return []
+
+   timetuple = CALENDAR.parse(date_string)
+   start_date = datetime(*timetuple[0][0:6])
+   return newer_than(sess, parent_uri, start_date)
+
+def rated_old(sess, parent_uri, op, value):
 
    LOG.debug("Finding entries rated %s %2d in %s" % (op, value, parent_uri))
 
@@ -259,6 +367,29 @@ def set_rating(path, value):
    upd = upd.values(rating=value)
    upd = upd.where(nodes_table.c.path==path)
    upd.execute()
+
+def from_incremental_query(sess, query):
+   LOG.debug('parsing incremental query %r' % query)
+
+   if not query or query == 'root' or query == '/':
+      # list the available query schemes
+      return [
+            DummyNode('rating'),
+            DummyNode('date'),
+            ]
+   else:
+      if query.startswith('root'):
+         query = query[5:]
+      query_nodes = query.split('/')
+
+   LOG.debug('Query nodes: %r' % query_nodes)
+
+   query_type = query_nodes.pop(0).lower()
+
+   if query_type == 'rating':
+      return rated(sess, query_nodes)
+   elif query_type == 'date':
+      return dated(sess, query_nodes)
 
 @memoized
 def from_query(sess, parent_uri, query):
@@ -304,7 +435,53 @@ def from_query2(sess, query_path):
       parent_uri = '/'.join(query_nodes)
       return rated(sess, "/%s"%parent_uri, op, value)
 
-class Node(object):
+def map_to_fs(query):
+   """
+   Remove any query specific elements, leaving only the fs-path
+   """
+   LOG.debug('Mapping to FS %r' % query)
+   query_nodes = query.split("/")
+
+   if not query_nodes:
+      return None
+
+   query_type = query_nodes.pop(0)
+
+   if query_type == 'rating':
+      if len(query_nodes) > 2:
+         op = query_nodes.pop(0)
+         value = query_nodes.pop(0)
+         if query_nodes:
+            query_nodes.pop(0) # remove leading 'ROOT'
+         return '/' + '/'.join(query_nodes)
+
+   elif query_type == 'date':
+      if len(query_nodes) > 1:
+         date_string = query_nodes.pop(0)
+         if query_nodes:
+            query_nodes.pop(0) # remove leading 'ROOT'
+         return '/' + '/'.join(query_nodes)
+
+   return None
+
+class DummyNode(object):
+
+   def __init__(self, label):
+      self.label = label
+
+   def __repr__(self):
+      return "<DummyNode %s %r>" % (
+            self.is_dir() and "d" or "f",
+            self.label)
+
+   def is_dir(self):
+      return True
+
+   @property
+   def basename(self):
+      return self.label
+
+class Node(DummyNode):
 
    def __init__(self, uri):
       self.path = uri_to_ltree(uri)
@@ -320,6 +497,8 @@ class Node(object):
 
    @property
    def basename(self):
+      if self.uri == '/':
+         return 'ROOT'
       return basename(self.uri)
 
 mapper(Node, nodes_table)

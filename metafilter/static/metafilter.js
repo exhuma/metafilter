@@ -3,3 +3,12 @@ $(document).ready(function() {
          cssclass: 'query-edit-box'
         });
 });
+
+function set_rating(path, value){
+   $.ajax({
+      url: "/set_rating",
+      type: "POST",
+      data: {path: path, value: value},
+      success: function(){alert(1);}
+         })
+}
