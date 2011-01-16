@@ -51,6 +51,13 @@ def thumbnail(path):
    response.headers['Content-Type'] = 'image/jpeg'
    return response
 
+@app.route('/download/<path>')
+def download(path):
+   node = nodes.by_path(g.sess, path)
+   response = make_response(open(node.uri,'rb').read())
+   response.headers['Content-Type'] = node.mimetype
+   return response
+
 @app.route('/set_rating', methods=["POST"])
 def set_rating():
    from metafilter.model.nodes import set_rating

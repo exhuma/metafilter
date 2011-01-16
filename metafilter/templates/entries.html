@@ -2,8 +2,8 @@
 {% block body %}
 <table>
    <tr>
+      <td><a href="{{url_for('query', query=query[0:query.rfind('/')])}}">.. (Up one level)</a></td>
       <td>&nbsp;</td>
-      <td><a href="{{url_for('query', query=query[0:query.rfind('/')])}}">..</a></td>
       <td>&nbsp;</td>
       <td>&nbsp;</td>
    </tr>
@@ -19,7 +19,7 @@
          <tr>
             <td>
                {% if row.mimetype and row.mimetype.startswith('image/') %}
-               <img src="{{url_for('thumbnail', path=row.path)}}" />
+               <a href="{{url_for('download', path=row.path)}}"><img src="{{url_for('thumbnail', path=row.path)}}" /></a>
                {% else %}
                &nbsp;
                {% endif %}
