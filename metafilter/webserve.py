@@ -43,13 +43,16 @@ def thumbnail(path):
    import Image
    from cStringIO import StringIO
    node = nodes.by_path(g.sess, path)
-   im = Image.open(node.uri)
-   im.thumbnail((128, 128), Image.ANTIALIAS)
-   tmp = StringIO()
-   im.save(tmp, "JPEG")
-   response = make_response(tmp.getvalue())
-   response.headers['Content-Type'] = 'image/jpeg'
-   return response
+   try:
+      im = Image.open(node.uri)
+      im.thumbnail((128, 128), Image.ANTIALIAS)
+      tmp = StringIO()
+      im.save(tmp, "JPEG")
+      response = make_response(tmp.getvalue())
+      response.headers['Content-Type'] = 'image/jpeg'
+      return response
+   except Exception, exc:
+      return str(exc)
 
 @app.route('/download/<path>')
 def download(path):
