@@ -1,7 +1,7 @@
 #!/usr/bin/python
 from metafilter.model import Session
 import metafilter.model
-from metafilter.model.nodes import update_nodes_from_path
+from metafilter.model.nodes import update_nodes_from_path, remove_orphans
 from datetime import datetime
 import sys
 from optparse import OptionParser
@@ -36,6 +36,7 @@ def main():
 
    sess = Session()
    update_nodes_from_path(sess, args[0], options.since)
+   remove_orphans(sess, args[0])
    sess.close()
 
 if __name__ == '__main__':

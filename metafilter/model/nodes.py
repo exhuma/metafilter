@@ -4,7 +4,7 @@ from sqlalchemy.sql import func, distinct
 from sqlalchemy.exc import IntegrityError, DataError
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from metafilter.model.queries import Query, query_table
-from os.path import sep, isdir, basename
+from os.path import sep, isdir, basename, exists
 from datetime import datetime, timedelta
 import re
 
@@ -135,6 +135,19 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
          dirs.remove('.svn')  # don't visit CVS directories
 
    sess.commit()
+
+def remove_orphans(sess, root):
+   root_ltree = uri_to_ltree(root)
+   qry = select([Node.uri])
+   qry = qry.where( Node.path.op("<@")(root_ltree) )
+   for row in qry.execute():
+      if not exists(row[0]):
+         LOG.info('Removing orphan %r' % row[0])
+         try:
+            nodes_table.delete(nodes_table.c.uri == row[0]).execute()
+            sess.commit()
+         except:
+            sess.rollback()
 
 def get_children(sess, parent):
    qry = sess.query(Node)
@@ -280,6 +293,25 @@ def rated(sess, nodes):
 
    return qry
 
+def all(sess, nodes):
+
+   parent_uri = '/'.join(nodes)
+
+   parent_path = uri_to_ltree(parent_uri)
+   depth = uri_depth(parent_uri)
+
+   stmt = sess.query(
+         distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
+         )
+
+   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
+   stmt = stmt.subquery()
+   qry = sess.query( Node )
+   qry = qry.filter( Node.path.in_(stmt) )
+   qry = qry.order_by( func.subpath(Node.path, -1, 1) )
+
+   return qry
+
 def dated(sess, nodes):
 
    query_string = 'date/%s' % str.join('/', nodes)
@@ -376,6 +408,7 @@ def from_incremental_query(sess, query):
       return [
             DummyNode('rating'),
             DummyNode('date'),
+            DummyNode('all'),
             ]
    else:
       if query.startswith('root'):
@@ -390,6 +423,8 @@ def from_incremental_query(sess, query):
       return rated(sess, query_nodes)
    elif query_type == 'date':
       return dated(sess, query_nodes)
+   elif query_type == 'all':
+      return all(sess, query_nodes)
 
 @memoized
 def from_query(sess, parent_uri, query):
