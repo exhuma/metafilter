@@ -164,7 +164,6 @@ def set_tags(sess, uri, new_tags):
    sess.merge(node)
    sess.flush()
 
-
 def remove_orphans(sess, root):
    root_ltree = uri_to_ltree(root)
    qry = select([Node.uri])
@@ -177,12 +176,6 @@ def remove_orphans(sess, root):
             sess.commit()
          except:
             sess.rollback()
-
-def get_children(sess, parent):
-   qry = sess.query(Node)
-   lquery = uri_to_ltree(parent) + ".*{1}"
-   qry = qry.filter( Node.path.op("~")(lquery) )
-   return qry.all()
 
 def newer_than(sess, parent_uri=None, date=None):
 
@@ -243,25 +236,6 @@ def between(sess, parent_uri=None, start_date=None, end_date=None):
          distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
          )
    stmt = stmt.filter(Node.created.between(start_date, end_date))
-   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
-   stmt = stmt.subquery()
-   qry = sess.query( Node )
-   qry = qry.filter( Node.path.in_(stmt) )
-
-   return qry
-
-def contains_text(sess, parent_uri=None, text=None):
-
-   if text == None:
-      text=""
-
-   parent_path = uri_to_ltree(parent_uri)
-   depth = uri_depth(parent_uri)
-
-   stmt = sess.query(
-         distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-         )
-   stmt = stmt.filter(Node.uri.ilike(text))
    stmt = stmt.filter( Node.path.op("<@")(parent_path) )
    stmt = stmt.subquery()
    qry = sess.query( Node )
@@ -438,7 +412,11 @@ def with_all_tags(sess, parent_uri, tags, flatten=False):
 
 
    for tag_name in tags:
+
       tag = Tag.find(sess, tag_name)
+      if not tag:
+         continue
+
       stmt = stmt.filter(Node.tags.contains(tag))
 
    stmt = stmt.filter( Node.path.op("<@")(parent_path) )
@@ -450,43 +428,13 @@ def with_all_tags(sess, parent_uri, tags, flatten=False):
 
    return stmt
 
-def rated_old(sess, parent_uri, op, value):
-
-   LOG.debug("Finding entries rated %s %2d in %s" % (op, value, parent_uri))
-
-   parent_path = uri_to_ltree(parent_uri)
-   depth = uri_depth(parent_uri)
-
-   stmt = sess.query(
-         distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-         )
-
-   if op == 'gt':
-      stmt = stmt.filter(Node.rating > value)
-   elif op == 'ge':
-      stmt = stmt.filter(Node.rating >= value)
-   elif op == 'lt':
-      stmt = stmt.filter(Node.rating < value)
-   elif op == 'le':
-      stmt = stmt.filter(Node.rating <= value)
-   elif op == 'eq':
-      stmt = stmt.filter(Node.rating == value)
-   elif op == 'ne':
-      stmt = stmt.filter(Node.rating != value)
-
-   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
-   stmt = stmt.subquery()
-   qry = sess.query( Node )
-   qry = qry.filter( Node.path.in_(stmt) )
-
-   return qry
-
 def set_rating(path, value):
    upd = nodes_table.update()
    upd = upd.values(rating=value)
    upd = upd.where(nodes_table.c.path==path)
    upd.execute()
 
+@memoized
 def from_incremental_query(sess, query):
    LOG.debug('parsing incremental query %r' % query)
 
@@ -520,50 +468,6 @@ def from_incremental_query(sess, query):
       return all(sess, query_nodes, flatten)
    elif query_type == 'tag':
       return tagged(sess, query_nodes, flatten)
-
-@memoized
-def from_query(sess, parent_uri, query):
-   match = TIME_PATTERN.match(query)
-   if  match and match.groups() != (None, None, None):
-      groups = match.groups()
-      if groups[0] and not groups[1] and not groups[2]:
-         # matches 'yyyy-mm-dd'
-         end_date = datetime.strptime(groups[0], "%Y-%m-%d")
-         return older_than(sess, parent_uri, end_date)
-      elif groups[0] and groups[1] == "t" and not groups[2]:
-         # matches 'yyyy-mm-ddt'
-         start_date = datetime.strptime(groups[0], "%Y-%m-%d")
-         return newer_than(sess, parent_uri, start_date)
-      elif not groups[0] and groups[1] == "t" and groups[2]:
-         # matches 'tyyyy-mm-dd'
-         end_date = datetime.strptime(groups[2], "%Y-%m-%d")
-         return older_than(sess, parent_uri, end_date)
-      elif groups[0] and groups[1] == "t" and groups[2]:
-         # matches 'yyyy-mm-ddtyyyy-mm-dd'
-         start_date = datetime.strptime(groups[0], "%Y-%m-%d")
-         end_date = datetime.strptime(groups[2], "%Y-%m-%d")
-         return between(sess, parent_uri, start_date, end_date)
-      else:
-         return []
-
-   timetuple = CALENDAR.parse(query)
-   start_date = datetime(*timetuple[0][0:6])
-   return newer_than(sess, parent_uri, start_date)
-
-def from_query2(sess, query_path):
-   query_nodes = query_path.split('/')
-   query_type = query_nodes.pop(0)
-
-   if query_type == 'date':
-      query = query_nodes.pop(0)
-      parent_uri = '/'.join(query_nodes)
-      return from_query(sess, "/%s"%parent_uri, query)
-
-   elif query_type == 'rating':
-      op = query_nodes.pop(0)
-      value = int(query_nodes.pop(0))
-      parent_uri = '/'.join(query_nodes)
-      return rated(sess, "/%s"%parent_uri, op, value)
 
 def map_to_fs(query):
    """

@@ -22,15 +22,6 @@ def after_request(response):
    g.sess.close()
    return response
 
-@app.route("/show_entries/<query>")
-@app.route("/show_entries/<query>/<path:parent_path>")
-def show_entries(parent_path=None, query=None):
-   from metafilter.model.nodes import from_query
-   if parent_path:
-      parent_path = "/"+parent_path
-   result = from_query(g.sess, parent_path, query)
-   return render_template("entries.html", entries=result, query=query)
-
 @app.route('/query')
 @app.route('/query/<path:query>')
 def query(query="root"):

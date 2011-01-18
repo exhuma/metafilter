@@ -6,7 +6,7 @@ import errno
 from time import mktime
 import metafilter.model
 from metafilter.model import Node, Query, Session
-from metafilter.model.nodes import from_query, by_uri, TIME_PATTERN, from_incremental_query, map_to_fs
+from metafilter.model.nodes import by_uri, TIME_PATTERN, from_incremental_query, map_to_fs
 import metafilter.model.queries as queries
 from os.path import sep, join, exists
 import os
@@ -31,96 +31,6 @@ def flag2mode(flags):
       m = m.replace('w', 'a', 1)
 
    return m
-
-class LoggingFuseObsolete(fuse.Fuse):
-
-    def __init__(self, *args, **kw):
-        fuse.Fuse.__init__(self, *args, **kw)
-        self.log = logging.getLogger(__name__)
-
-    def getattr(self, path):
-       self.log.debug("Called unimplemented getattr on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def getdir(self, path):
-       self.log.debug("Called unimplemented getdir on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def mythread ( self ):
-       self.log.debug("Called unimplemented mythread with %r" % locals())
-       return -errno.ENOSYS
-
-    def chmod ( self, path, mode ):
-       self.log.debug("Called unimplemented chmod on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def chown ( self, path, uid, gid ):
-       self.log.debug("Called unimplemented chown on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def fsync ( self, path, isFsyncFile ):
-       self.log.debug("Called unimplemented fsync on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def link ( self, targetPath, linkPath ):
-       self.log.debug("Called unimplemented link on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def mkdir ( self, path, mode ):
-       self.log.debug("Called unimplemented mkdir on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def mknod ( self, path, mode, dev ):
-       self.log.debug("Called unimplemented mknod on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    #def open ( self, path, flags ):
-    #   self.log.debug("Called unimplemented open on %s with %r" % (path, locals()))
-    #   return -errno.ENOSYS
-
-    def read ( self, path, length, offset ):
-       self.log.debug("Called unimplemented read on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def readlink ( self, path ):
-       self.log.debug("Called unimplemented readlink on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def release ( self, *args ):
-       self.log.debug("Called unimplemented release with %r" % (locals()))
-       return -errno.ENOSYS
-
-    def rename ( self, oldPath, newPath ):
-       self.log.debug("Called unimplemented rename on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def rmdir ( self, path ):
-       self.log.debug("Called unimplemented rmdir on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def statfs ( self ):
-       self.log.debug("Called unimplemented statfs on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def symlink ( self, targetPath, linkPath ):
-       self.log.debug("Called unimplemented symlink on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def truncate ( self, path, size ):
-       self.log.debug("Called unimplemented truncate on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def unlink ( self, path ):
-       self.log.debug("Called unimplemented unlink on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def utime ( self, path, times ):
-       self.log.debug("Called unimplemented utime on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
-
-    def write ( self, path, buf, offset ):
-       self.log.debug("Called unimplemented write on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
 
 class LoggingFuse(fuse.Fuse):
 
@@ -396,44 +306,6 @@ class MetaFilterFS(LoggingFuse):
          self.log.debug("listing %s" % r.name)
          yield r
 
-   def readdir_old(self, path, offset):
-      self.log.debug("readdir %r with offset %r" % (path, offset))
-      try:
-         entries = [
-               fuse.Direntry('.'),
-               fuse.Direntry('..') ]
-         if path == '/':
-            # list the available queries first
-            for row in queries.all(self.sess):
-               self.log.debug("Adding %s" % row)
-               entries.append( fuse.Direntry(row.query.encode("utf8", "replace")) )
-         else:
-            nodes = path.split(sep)
-            query = nodes[1]
-            self.log.debug("query nodes: %s" % nodes)
-            if len(nodes) == 2:
-               parent_node = self.root
-            else:
-               parent_node = join(self.root, *nodes[2:])
-            self.log.debug("Querying for %s in %s" % (query, parent_node))
-            result = from_query( self.sess, parent_node, query )
-            for row in result:
-               entry = fuse.Direntry(row.basename.encode("utf8", "replace"))
-               if row.is_dir():
-                  entry.type = stat.S_IFDIR
-               else:
-                  entry.type = stat.S_IFREG
-               entries.append(entry)
-         for r in entries:
-            if not r.name:
-               continue
-            self.log.debug("listing %s" % r)
-            yield r
-      except GeneratorExit:
-         raise
-      except Exception, ex:
-         self.log.exception(ex)
-
    def rmdir(self, path):
       self.log.debug("* rmdir %s" % (path))
       leaf = path.split(sep)[-1]
@@ -459,13 +331,6 @@ class MetaFilterFS(LoggingFuse):
       self.sess.add(q)
       self.sess.commit()
       return 0
-
-   # def read ( self, path, length, offset ):
-   #    self.log.debug( '*** read %s - %s - %s' % (path, length, offset) )
-   #    fptr = open( self.abspath(path), "rb" )
-   #    fptr.seek(offset)
-   #    chunk = fptr.read(length)
-   #    return chunk
 
    def main(self, *a, **kw):
 
