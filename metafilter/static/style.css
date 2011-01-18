@@ -21,3 +21,11 @@ H1{
    font-family: Orbitron;
    text-shadow: 2px 2px 3px #aaa;
 }
+
+#entryList{
+   border-spacing: 0;
+}
+
+#entryList TD{
+   border: 1px solid #aaa;
+}

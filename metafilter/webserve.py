@@ -36,6 +36,7 @@ def show_entries(parent_path=None, query=None):
 def query(query="root"):
    from metafilter.model.nodes import from_incremental_query
    result = from_incremental_query(g.sess, query)
+   result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
    return render_template("entries.html", entries=result, query=query)
 
 @app.route('/thumbnail/<path>')

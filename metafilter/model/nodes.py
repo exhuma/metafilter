@@ -194,7 +194,6 @@ def older_than(sess, parent_uri=None, date=None):
    stmt = stmt.subquery()
    qry = sess.query( Node )
    qry = qry.filter( Node.path.in_(stmt) )
-   qry = qry.order_by( func.subpath(Node.path, -1, 1) )
 
    return qry
 
@@ -294,7 +293,6 @@ def rated(sess, nodes, flatten=False):
       stmt = stmt.subquery()
       qry = sess.query( Node )
       qry = qry.filter( Node.path.in_(stmt) )
-      qry = qry.order_by( func.subpath(Node.path, -1, 1) )
       return qry
 
    return stmt
@@ -314,7 +312,6 @@ def all(sess, nodes, flatten=False):
    stmt = stmt.subquery()
    qry = sess.query( Node )
    qry = qry.filter( Node.path.in_(stmt) )
-   qry = qry.order_by( func.subpath(Node.path, -1, 1) )
 
    return qry
 
@@ -396,7 +393,6 @@ def rated_old(sess, parent_uri, op, value):
    stmt = stmt.subquery()
    qry = sess.query( Node )
    qry = qry.filter( Node.path.in_(stmt) )
-   qry = qry.order_by( func.subpath(Node.path, -1, 1) )
 
    return qry
 
