@@ -80,7 +80,7 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
             LOG.debug("Added %s" % attached_file)
             sess.commit()
          except IntegrityError, exc:
-            if exc.message == '(IntegrityError) duplicate key value violates unique constraint "node_path"\n':
+            if exc.message.strip() == '(IntegrityError) duplicate key value violates unique constraint "node_path"':
                LOG.warning(exc.message)
                LOG.warning(exc.params)
                sess.rollback()
@@ -201,6 +201,13 @@ def rated(stmt, parent_uri, nodes):
 
    return stmt
 
+def in_path(stmt, nodes):
+
+   substring = nodes.pop(0)
+   LOG.debug("Finding entries containing %s in path" % (substring))
+   stmt = stmt.filter(Node.uri.ilike('%%%s%%' % substring))
+   return stmt
+
 def all(sess, nodes, flatten=False):
 
    parent_uri = '/'.join(nodes)
@@ -278,14 +285,18 @@ def set_rating(path, value):
 def expected_params(query_types):
    num = 0
 
-   if 'rating' in query_types:
-      num += 2
+   for type in query_types:
+      if type == 'rating':
+         num += 2
 
-   if 'date' in query_types:
-      num += 1
+      if type == 'in_path':
+         num += 1
 
-   if 'tag' in query_types:
-      num += 1
+      if type == 'date':
+         num += 1
+
+      if type == 'tag':
+         num += 1
 
    return num
 
@@ -300,6 +311,8 @@ def from_incremental_query(sess, query):
             DummyNode('tag'),
             DummyNode('date'),
             DummyNode('all'),
+            DummyNode('named_queries'),
+            DummyNode('in_path'),
             ]
    else:
       if query.startswith('root'):
@@ -322,6 +335,22 @@ def from_incremental_query(sess, query):
    # Construct the different queries
    if len(query_types) == 1 and query_types[0] == 'all':
       return all(sess, query_nodes, flatten)
+
+   if 'named_queries' in query_types and not query_nodes:
+      nq_qry = sess.query(Query)
+      nq_qry = nq_qry.filter( Query.label != None )
+      nq_qry = nq_qry.order_by(Query.label)
+      return [ DummyNode(x.label) for x in nq_qry.all() ]
+   elif query_types[0] == 'named_queries':
+      # fetch the saved query and replace the named query by that string
+      query_name = query_nodes.pop(0)
+      nq_qry = sess.query(Query)
+      nq_qry = nq_qry.filter( Query.label == query_name ).first()
+      if not nq_qry:
+         return []
+
+      prepend_nodes = nq_qry.query.split('/')
+      query_nodes = prepend_nodes + query_nodes
 
    num_params = expected_params(query_types)
    if not query_nodes or len(query_nodes) < num_params:
@@ -359,6 +388,9 @@ def from_incremental_query(sess, query):
 
       if query_type == 'rating':
          stmt = rated(stmt, parent_uri, query_nodes)
+
+      if query_type == 'in_path':
+         stmt = in_path(stmt, query_nodes)
 
       if query_type == 'tag':
          stmt = tagged(sess, stmt, parent_uri, query_nodes)
