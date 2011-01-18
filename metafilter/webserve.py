@@ -27,7 +27,11 @@ def after_request(response):
 def query(query="root"):
    from metafilter.model.nodes import from_incremental_query
    result = from_incremental_query(g.sess, query)
-   result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
+   try:
+      result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
+   except Exception, exc:
+      LOG.info(exc)
+
    return render_template("entries.html", entries=result, query=query)
 
 @app.route('/thumbnail/<path>')

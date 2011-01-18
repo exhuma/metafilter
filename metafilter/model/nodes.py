@@ -177,105 +177,14 @@ def remove_orphans(sess, root):
          except:
             sess.rollback()
 
-def newer_than(sess, parent_uri=None, date=None):
-
-   LOG.debug("Finding entries newer than %s in %r" % (date, parent_uri))
-
-   if date == None:
-      date = datetime.now()
-
-   parent_path = uri_to_ltree(parent_uri)
-   depth = uri_depth(parent_uri)
-
-   stmt = sess.query(
-         distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-         )
-   stmt = stmt.filter(Node.created > date)
-   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
-   stmt = stmt.subquery()
-   qry = sess.query( Node )
-   qry = qry.filter( Node.path.in_(stmt) )
-
-   return qry
-
-def older_than(sess, parent_uri=None, date=None):
-
-   LOG.debug("Finding entries older than %s in %r" % (date, parent_uri))
-
-   if date == None:
-      date = datetime.now()
-
-   parent_path = uri_to_ltree(parent_uri)
-   depth = uri_depth(parent_uri)
-
-   stmt = sess.query(
-         distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-         )
-   stmt = stmt.filter(Node.created < date)
-   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
-   stmt = stmt.subquery()
-   qry = sess.query( Node )
-   qry = qry.filter( Node.path.in_(stmt) )
-
-   return qry
-
-def between(sess, parent_uri=None, start_date=None, end_date=None):
-
-   LOG.debug("Finding entries between %s and %s in %r" % (start_date, end_date, parent_uri))
-
-   if start_date == None:
-      start_date = datetime.now() - timedelta(days=10)
-
-   if end_date == None:
-      end_date = datetime.now()
-
-   parent_path = uri_to_ltree(parent_uri)
-   depth = uri_depth(parent_uri)
-
-   stmt = sess.query(
-         distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-         )
-   stmt = stmt.filter(Node.created.between(start_date, end_date))
-   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
-   stmt = stmt.subquery()
-   qry = sess.query( Node )
-   qry = qry.filter( Node.path.in_(stmt) )
-
-   return qry
-
-def rated(sess, nodes, flatten=False):
+def rated(stmt, parent_uri, nodes):
 
    query_string = 'rating/%s' % str.join('/', nodes)
 
-   if not nodes or len(nodes) < 2:
-      # no details known yet. Find appropriate queries
-      output = []
-      stmt = sess.query(Query.query)
-      LOG.debug('Listing nodes starting with %r' % query_string)
-      stmt = stmt.filter(query_table.c.query.startswith(query_string))
-      stmt = stmt.order_by(query_table.c.query)
-      for row in stmt:
-         sub_nodes = row.query.split('/')
-         # we're in the case where the initial nodes were empty. We only return
-         # the next element
-         output.append(DummyNode(sub_nodes[len(nodes)+1]))
-      return output
-
    op = nodes.pop(0)
    value = int(nodes.pop(0))
-   parent_uri = '/'.join(nodes)
 
    LOG.debug("Finding entries rated %s %2d in %s" % (op, value, parent_uri))
-
-   parent_path = uri_to_ltree(parent_uri)
-   depth = uri_depth(parent_uri)
-
-   if flatten:
-      stmt = sess.query(Node)
-   else:
-      stmt = sess.query(
-            distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-            )
 
    if op == 'gt':
       stmt = stmt.filter(Node.rating > value)
@@ -289,14 +198,6 @@ def rated(sess, nodes, flatten=False):
       stmt = stmt.filter(Node.rating == value)
    elif op == 'ne':
       stmt = stmt.filter(Node.rating != value)
-
-   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
-
-   if not flatten:
-      stmt = stmt.subquery()
-      qry = sess.query( Node )
-      qry = qry.filter( Node.path.in_(stmt) )
-      return qry
 
    return stmt
 
@@ -318,28 +219,11 @@ def all(sess, nodes, flatten=False):
 
    return qry
 
-def dated(sess, nodes, flatten=False):
-
-   query_string = 'date/%s' % str.join('/', nodes)
-
-   if not nodes or len(nodes) < 1:
-      # no details known yet. Find appropriate queries
-      output = []
-      stmt = sess.query(Query.query)
-      LOG.debug('Listing nodes starting with %r' % query_string)
-      stmt = stmt.filter(query_table.c.query.startswith(query_string))
-      stmt = stmt.order_by(query_table.c.query)
-      for row in stmt:
-         sub_nodes = row.query.split('/')
-         # we're in the case where the initial nodes were empty. We only return
-         # the next element
-         output.append(DummyNode(sub_nodes[len(nodes)+1]))
-      return output
+def dated(sess, stmt, parent_uri, nodes):
 
    date_string = nodes.pop(0)
-   parent_uri = '/'.join(nodes)
 
-   LOG.debug("Finding entries using date string %s" % (date_string))
+   LOG.debug("Finding entries using date string %s in %r" % (date_string, parent_uri))
 
    match = TIME_PATTERN.match(date_string)
    if  match and match.groups() != (None, None, None):
@@ -347,84 +231,41 @@ def dated(sess, nodes, flatten=False):
       if groups[0] and not groups[1] and not groups[2]:
          # matches 'yyyy-mm-dd'
          end_date = datetime.strptime(groups[0], "%Y-%m-%d")
-         return older_than(sess, parent_uri, end_date)
+         stmt = stmt.filter(Node.created < end_date)
       elif groups[0] and groups[1] == "t" and not groups[2]:
          # matches 'yyyy-mm-ddt'
          start_date = datetime.strptime(groups[0], "%Y-%m-%d")
-         return newer_than(sess, parent_uri, start_date)
+         stmt = stmt.filter(Node.created > start_date)
       elif not groups[0] and groups[1] == "t" and groups[2]:
          # matches 'tyyyy-mm-dd'
          end_date = datetime.strptime(groups[2], "%Y-%m-%d")
-         return older_than(sess, parent_uri, end_date)
+         stmt = stmt.filter(Node.created < end_date)
       elif groups[0] and groups[1] == "t" and groups[2]:
          # matches 'yyyy-mm-ddtyyyy-mm-dd'
          start_date = datetime.strptime(groups[0], "%Y-%m-%d")
          end_date = datetime.strptime(groups[2], "%Y-%m-%d")
-         return between(sess, parent_uri, start_date, end_date)
-      else:
-         return []
+         stmt = stmt.filter(Node.created.between(start_date, end_date))
 
    timetuple = CALENDAR.parse(date_string)
    start_date = datetime(*timetuple[0][0:6])
-   return newer_than(sess, parent_uri, start_date)
+   stmt = stmt.filter(Node.created > start_date)
+   return stmt
 
-def tagged(sess, nodes, flatten=False):
+def tagged(sess, stmt, parent_uri, nodes):
 
    query_string = 'tag/%s' % str.join('/', nodes)
 
-   if not nodes or len(nodes) < 1:
-      # no details known yet. Find appropriate queries
-      output = []
-      stmt = sess.query(Query.query)
-      LOG.debug('Listing nodes starting with %r' % query_string)
-      stmt = stmt.filter(query_table.c.query.startswith(query_string))
-      stmt = stmt.order_by(query_table.c.query)
-      for row in stmt:
-         sub_nodes = row.query.split('/')
-         # we're in the case where the initial nodes were empty. We only return
-         # the next element
-         output.append(DummyNode(sub_nodes[len(nodes)+1]))
-      return output
-
    tag_string = nodes.pop(0)
-   parent_uri = '/'.join(nodes)
 
-   LOG.debug("Finding entries using tag string %s" % (tag_string))
+   LOG.debug("Finding entries using tag string %s in %r" % (tag_string, parent_uri))
 
    tags = tag_string.split(',')
-   return with_all_tags(sess, parent_uri, tags, flatten)
-
-def with_all_tags(sess, parent_uri, tags, flatten=False):
-   LOG.debug("Finding entries with tags %r in %r" % (tags, parent_uri))
-
-   if not tags:
-      return None
-
-   parent_path = uri_to_ltree(parent_uri)
-   depth = uri_depth(parent_uri)
-
-   if flatten:
-      stmt = sess.query(Node)
-   else:
-      stmt = sess.query(
-            distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-            )
-
 
    for tag_name in tags:
-
       tag = Tag.find(sess, tag_name)
       if not tag:
          continue
-
       stmt = stmt.filter(Node.tags.contains(tag))
-
-   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
-   if not flatten:
-      stmt = stmt.subquery()
-      qry = sess.query( Node )
-      qry = qry.filter( Node.path.in_(stmt) )
-      return qry
 
    return stmt
 
@@ -433,6 +274,20 @@ def set_rating(path, value):
    upd = upd.values(rating=value)
    upd = upd.where(nodes_table.c.path==path)
    upd.execute()
+
+def expected_params(query_types):
+   num = 0
+
+   if 'rating' in query_types:
+      num += 2
+
+   if 'date' in query_types:
+      num += 1
+
+   if 'tag' in query_types:
+      num += 1
+
+   return num
 
 @memoized
 def from_incremental_query(sess, query):
@@ -453,21 +308,68 @@ def from_incremental_query(sess, query):
 
    LOG.debug('Query nodes: %r' % query_nodes)
 
-   query_type = query_nodes.pop(0).lower()
+   # pop the query type off the beginning
+   query_types = query_nodes.pop(0).lower()
+   query_types = [x.strip() for x in query_types.split(',')]
+
+   # handle flattened queries
    if query_nodes and query_nodes[-1] == "__flat__":
       query_nodes.pop()
       flatten = True
    else:
       flatten = False
 
-   if query_type == 'rating':
-      return rated(sess, query_nodes, flatten)
-   elif query_type == 'date':
-      return dated(sess, query_nodes, flatten)
-   elif query_type == 'all':
+   # Construct the different queries
+   if len(query_types) == 1 and query_types[0] == 'all':
       return all(sess, query_nodes, flatten)
-   elif query_type == 'tag':
-      return tagged(sess, query_nodes, flatten)
+
+   num_params = expected_params(query_types)
+   if not query_nodes or len(query_nodes) < num_params:
+      # no details known yet. Find appropriate queries
+      output = []
+      stmt = sess.query(Query.query)
+      LOG.debug('Listing nodes starting with %r' % query)
+      stmt = stmt.filter(query_table.c.query.startswith(query))
+      stmt = stmt.order_by(query_table.c.query)
+      for row in stmt:
+         sub_nodes = row.query.split('/')
+         # we're in the case where the initial nodes were empty. We only return
+         # the next element
+         output.append(DummyNode(sub_nodes[len(query_nodes)+1]))
+      return output
+
+   parent_uri = '/'.join(query_nodes[num_params:])
+
+   parent_path = uri_to_ltree(parent_uri)
+   depth = uri_depth(parent_uri)
+
+   if flatten:
+      stmt = sess.query(Node)
+   else:
+      stmt = sess.query(
+            distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
+            )
+
+   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
+
+   # apply all filters in sequence
+   for query_type in query_types:
+      if query_type == 'date':
+         stmt = dated(sess, stmt, parent_uri, query_nodes)
+
+      if query_type == 'rating':
+         stmt = rated(stmt, parent_uri, query_nodes)
+
+      if query_type == 'tag':
+         stmt = tagged(sess, stmt, parent_uri, query_nodes)
+
+   if not flatten:
+      stmt = stmt.subquery()
+      qry = sess.query( Node )
+      qry = qry.filter( Node.path.in_(stmt) )
+      return qry
+
+   return stmt
 
 def map_to_fs(query):
    """
