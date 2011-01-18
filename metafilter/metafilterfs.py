@@ -279,7 +279,7 @@ class MetaFilterFS(LoggingFuse):
       return -errno.ENOSYS
 
    def readdir(self, path, offset):
-      self.log.debug("readdir %r with offset %r" % (path, offset))
+      self.log.info("*** readdir %r with offset %r" % (path, offset))
 
       self.map = {}
 

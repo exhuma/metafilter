@@ -381,29 +381,15 @@ def map_to_fs(query):
    if not query_nodes:
       return None
 
-   query_type = query_nodes.pop(0)
+   # pop the query type off the beginning
+   query_types = query_nodes.pop(0).lower()
+   query_types = [x.strip() for x in query_types.split(',')]
+   chop_params = expected_params(query_types)+1
+   out = '/' + '/'.join(query_nodes[chop_params:])
+   LOG.info('Expected params: %d' % chop_params)
+   LOG.info('remainder: %r' % query_nodes[chop_params:])
 
-   if query_type == 'rating':
-      if len(query_nodes) > 2:
-         op = query_nodes.pop(0)
-         value = query_nodes.pop(0)
-         if query_nodes:
-            query_nodes.pop(0) # remove leading 'ROOT'
-         return '/' + '/'.join(query_nodes)
-
-   elif query_type == 'date':
-      if len(query_nodes) > 1:
-         date_string = query_nodes.pop(0)
-         if query_nodes:
-            query_nodes.pop(0) # remove leading 'ROOT'
-         return '/' + '/'.join(query_nodes)
-
-   elif query_type == 'tag':
-      if len(query_nodes) > 1:
-         tags = query_nodes.pop(0)
-         if query_nodes:
-            query_nodes.pop(0) # remove leading 'ROOT'
-         return '/' + '/'.join(query_nodes)
+   return out
 
    return None
 
