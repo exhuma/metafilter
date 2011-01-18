@@ -1,5 +1,5 @@
 from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, DateTime, Boolean, UniqueConstraint, Sequence, select, func, update
-from sqlalchemy.orm import mapper, aliased
+from sqlalchemy.orm import mapper, aliased, relation
 from sqlalchemy.sql import func, distinct
 from sqlalchemy.exc import IntegrityError, DataError
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
@@ -25,6 +25,15 @@ nodes_table = Table('node', metadata,
    Column('to_purge', Boolean, default=False),
    Column('rating', Integer, default=0),
    UniqueConstraint('uri', name='unique_uri')
+)
+
+tag_table = Table('tag', metadata,
+   Column('name', Unicode, nullable=False, primary_key=True),
+)
+
+node_has_tag_table = Table('node_has_tag', metadata,
+   Column('uri', Unicode, ForeignKey('node.uri'), nullable=False, primary_key=True),
+   Column('tag', Unicode, ForeignKey('tag.name'), nullable=False, primary_key=True),
 )
 
 TIME_PATTERN=re.compile(r'(\d{4}-\d{2}-\d{2})?(t)?(\d{4}-\d{2}-\d{2})?')
@@ -135,6 +144,26 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
          dirs.remove('.svn')  # don't visit CVS directories
 
    sess.commit()
+
+def set_tags(sess, uri, new_tags):
+   node = by_uri(sess, uri)
+   if not node:
+      return
+
+   for tag in node.tags:
+      if tag.name not in new_tags:
+         node.tags.remove(tag)
+
+   for tag in new_tags:
+      if tag not in node.tags:
+         tmp = Tag.find(sess, tag)
+         if not tmp:
+            tmp = Tag(tag)
+         node.tags.append(tmp)
+
+   sess.merge(node)
+   sess.flush()
+
 
 def remove_orphans(sess, root):
    root_ltree = uri_to_ltree(root)
@@ -365,6 +394,62 @@ def dated(sess, nodes, flatten=False):
    start_date = datetime(*timetuple[0][0:6])
    return newer_than(sess, parent_uri, start_date)
 
+def tagged(sess, nodes, flatten=False):
+
+   query_string = 'tag/%s' % str.join('/', nodes)
+
+   if not nodes or len(nodes) < 1:
+      # no details known yet. Find appropriate queries
+      output = []
+      stmt = sess.query(Query.query)
+      LOG.debug('Listing nodes starting with %r' % query_string)
+      stmt = stmt.filter(query_table.c.query.startswith(query_string))
+      stmt = stmt.order_by(query_table.c.query)
+      for row in stmt:
+         sub_nodes = row.query.split('/')
+         # we're in the case where the initial nodes were empty. We only return
+         # the next element
+         output.append(DummyNode(sub_nodes[len(nodes)+1]))
+      return output
+
+   tag_string = nodes.pop(0)
+   parent_uri = '/'.join(nodes)
+
+   LOG.debug("Finding entries using tag string %s" % (tag_string))
+
+   tags = tag_string.split(',')
+   return with_all_tags(sess, parent_uri, tags, flatten)
+
+def with_all_tags(sess, parent_uri, tags, flatten=False):
+   LOG.debug("Finding entries with tags %r in %r" % (tags, parent_uri))
+
+   if not tags:
+      return None
+
+   parent_path = uri_to_ltree(parent_uri)
+   depth = uri_depth(parent_uri)
+
+   if flatten:
+      stmt = sess.query(Node)
+   else:
+      stmt = sess.query(
+            distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
+            )
+
+
+   for tag_name in tags:
+      tag = Tag.find(sess, tag_name)
+      stmt = stmt.filter(Node.tags.contains(tag))
+
+   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
+   if not flatten:
+      stmt = stmt.subquery()
+      qry = sess.query( Node )
+      qry = qry.filter( Node.path.in_(stmt) )
+      return qry
+
+   return stmt
+
 def rated_old(sess, parent_uri, op, value):
 
    LOG.debug("Finding entries rated %s %2d in %s" % (op, value, parent_uri))
@@ -409,6 +494,7 @@ def from_incremental_query(sess, query):
       # list the available query schemes
       return [
             DummyNode('rating'),
+            DummyNode('tag'),
             DummyNode('date'),
             DummyNode('all'),
             ]
@@ -432,6 +518,8 @@ def from_incremental_query(sess, query):
       return dated(sess, query_nodes, flatten)
    elif query_type == 'all':
       return all(sess, query_nodes, flatten)
+   elif query_type == 'tag':
+      return tagged(sess, query_nodes, flatten)
 
 @memoized
 def from_query(sess, parent_uri, query):
@@ -504,6 +592,13 @@ def map_to_fs(query):
             query_nodes.pop(0) # remove leading 'ROOT'
          return '/' + '/'.join(query_nodes)
 
+   elif query_type == 'tag':
+      if len(query_nodes) > 1:
+         tags = query_nodes.pop(0)
+         if query_nodes:
+            query_nodes.pop(0) # remove leading 'ROOT'
+         return '/' + '/'.join(query_nodes)
+
    return None
 
 class DummyNode(object):
@@ -558,4 +653,22 @@ class Node(DummyNode):
       out = "%s.%s" % (md5(self.uri).hexdigest(), ext)
       return out
 
-mapper(Node, nodes_table)
+class Tag(object):
+
+   @classmethod
+   def find(self, sess, name):
+      qry = sess.query(Tag)
+      qry = qry.filter( Tag.name == name )
+      return qry.first()
+
+   def __init__(self, name):
+      self.name = name
+
+   def __repr__(self):
+      return self.name
+
+mapper(Tag, tag_table)
+
+mapper(Node, nodes_table, properties={
+   'tags': relation(Tag, secondary=node_has_tag_table, backref='nodes')
+   })

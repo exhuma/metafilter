@@ -88,6 +88,14 @@ def save_query():
    queries.update( g.sess, old_query, new_query )
    return new_query
 
+@app.route("/save_tags", methods=["POST"])
+def save_tags():
+   uri = request.form['id']
+   tags_value = request.form['value']
+   tags = [x.strip() for x in tags_value.split(',')]
+   nodes.set_tags( g.sess, uri, tags )
+   return ', '.join(tags)
+
 @app.route("/delete_query/<query>")
 def delete_query(query):
    queries.delete( g.sess, query )

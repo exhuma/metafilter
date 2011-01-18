@@ -1,12 +1,12 @@
-.query-edit{
+.tag-edit, .query-edit{
    font-family: 'Anonymous Pro';
 }
 
-.query-edit-box{
+.tag-edit-box, .query-edit-box{
    display: inline;
 }
 
-.query-edit-box INPUT{
+.tag-edit-box .query-edit-box INPUT{
    background-color: #ccc;
    border: 1px solid black;
    font-family: 'Anonymous Pro';

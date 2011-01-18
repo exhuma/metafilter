@@ -28,7 +28,11 @@
                &nbsp;
                {% endif %}
             </td>
-            <td>{{ row.basename }}</td>
+            <td>
+               {{ row.basename }}
+               <br />
+               <span id="{{row.uri}}" class='tags-edit'>{{ row.tags|sort|join(', ') }}</span>
+            </td>
             <td>{{ row.mimetype }}</td>
             <td>
                <a class="{{ row.rating==1 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 1); return false;">1</a>&nbsp;
