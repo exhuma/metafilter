@@ -20,6 +20,8 @@ if not hasattr(fuse, '__version__'):
         "your fuse-py doesn't know of fuse.__version__, probably it's too old."
 fuse.fuse_python_api = (0, 2)
 fuse.feature_assert('stateful_files', 'has_init')
+def path_items(relpath):
+   return relpath.split(sep)[1:]
 
 def flag2mode(flags):
    md = {os.O_RDONLY: 'r', os.O_WRONLY: 'w', os.O_RDWR: 'w+'}
@@ -199,6 +201,110 @@ class MyStat(fuse.Stat):
       self.st_mtime = 0
       self.st_ctime = 0
 
+class MetaFile(object):
+
+   def __init__(self, fs, path, flags, *mode):
+      self.log = logging.getLogger("%s.%s" % (__name__, "MetaFile"))
+
+      if '__flat__' in path:
+         self.log.debug("Retrieving stat for flattened path %r" % (path))
+         nodes = path.split(sep)
+         md5name = nodes[-1]
+         path = fs.map.get(md5name, None)
+      else:
+         # remove leading '/'
+         path = path[1:]
+         self.log.debug("Retrieving stat for path %r => %s" % (path, path_items(path)))
+         path = map_to_fs(path)
+
+      try:
+         self.log.debug("Opening file at path %s in %s" % (path, os.getcwd()))
+         self.file = os.fdopen(os.open(path, flags, *mode),
+                               flag2mode(flags))
+         self.fd = self.file.fileno()
+         self.log.debug("Opened as %s" % self.file)
+      except Exception, exc:
+         self.log.exception(exc)
+
+   def read(self, length, offset, *args):
+      self.log.debug("Reading: %r" %locals() )
+      self.file.seek(offset)
+      return self.file.read(length)
+
+   def write(self, buf, offset):
+      self.file.seek(offset)
+      self.file.write(buf)
+      return len(buf)
+
+   def release(self, *args):
+      self.log.debug("Releasing: %r" %locals() )
+      self.file.close()
+
+   def _fflush(self):
+      if 'w' in self.file.mode or 'a' in self.file.mode:
+          self.file.flush()
+
+   def fsync(self, isfsyncfile):
+      self._fflush()
+      if isfsyncfile and hasattr(os, 'fdatasync'):
+          os.fdatasync(self.fd)
+      else:
+          os.fsync(self.fd)
+
+   def flush(self):
+      self._fflush()
+      # cf. xmp_flush() in fusexmp_fh.c
+      os.close(os.dup(self.fd))
+
+   def fgetattr(self):
+      try:
+         return os.fstat(self.fd)
+      except Exception, exc:
+         self.log.exception(exc)
+
+   def ftruncate(self, len):
+      self.file.truncate(len)
+
+   # def lock(self, cmd, owner, **kw):
+   #    # The code here is much rather just a demonstration of the locking
+   #    # API than something which actually was seen to be useful.
+
+   #    # Advisory file locking is pretty messy in Unix, and the Python
+   #    # interface to this doesn't make it better.
+   #    # We can't do fcntl(2)/F_GETLK from Python in a platfrom independent
+   #    # way. The following implementation *might* work under Linux. 
+   #    #
+   #    # if cmd == fcntl.F_GETLK:
+   #    #     import struct
+   #    # 
+   #    #     lockdata = struct.pack('hhQQi', kw['l_type'], os.SEEK_SET,
+   #    #                            kw['l_start'], kw['l_len'], kw['l_pid'])
+   #    #     ld2 = fcntl.fcntl(self.fd, fcntl.F_GETLK, lockdata)
+   #    #     flockfields = ('l_type', 'l_whence', 'l_start', 'l_len', 'l_pid')
+   #    #     uld2 = struct.unpack('hhQQi', ld2)
+   #    #     res = {}
+   #    #     for i in xrange(len(uld2)):
+   #    #          res[flockfields[i]] = uld2[i]
+   #    #  
+   #    #     return fuse.Flock(**res)
+
+   #    # Convert fcntl-ish lock parameters to Python's weird
+   #    # lockf(3)/flock(2) medley locking API...
+   #    op = { fcntl.F_UNLCK : fcntl.LOCK_UN,
+   #           fcntl.F_RDLCK : fcntl.LOCK_SH,
+   #           fcntl.F_WRLCK : fcntl.LOCK_EX }[kw['l_type']]
+   #    if cmd == fcntl.F_GETLK:
+   #        return -EOPNOTSUPP
+   #    elif cmd == fcntl.F_SETLK:
+   #        if op != fcntl.LOCK_UN:
+   #            op |= fcntl.LOCK_NB
+   #    elif cmd == fcntl.F_SETLKW:
+   #        pass
+   #    else:
+   #        return -EINVAL
+
+   #    fcntl.lockf(self.fd, op, kw['l_start'], kw['l_len'])
+
 class MetaFilterFS(LoggingFuse):
 
    def __init__(self, *args, **kwargs):
@@ -209,6 +315,7 @@ class MetaFilterFS(LoggingFuse):
       self.sess = Session()
       self.root = '/'
       self.dsn = "sqlite://"
+      self.map = {}
 
    def setup_logging(self):
       stdout = logging.StreamHandler()
@@ -222,10 +329,7 @@ class MetaFilterFS(LoggingFuse):
       self.log.setLevel(logging.DEBUG)
 
    def depth(self, relpath):
-      return len(self.path_items(relpath))
-
-   def path_items(self, relpath):
-      return relpath.split(sep)[1:]
+      return len(path_items(relpath))
 
    def fsinit(self):
       os.chdir(self.root)
@@ -234,23 +338,28 @@ class MetaFilterFS(LoggingFuse):
       if path.startswith('/.Trash'):
          return -errno.ENOENT
 
-      # remove leading '/'
-      path = path[1:]
+      if '__flat__' in path:
+         self.log.debug("Retrieving stat for flattened path %r" % (path))
+         nodes = path.split(sep)
+         md5name = nodes[-1]
+         fs_path = self.map.get(md5name, None)
+      else:
+         # remove leading '/'
+         path = path[1:]
+         self.log.debug("Retrieving stat for path %r => %s" % (path, path_items(path)))
+         fs_path = map_to_fs(path)
 
-      self.log.debug("Retrieving stat for path %r => %s" % (path, self.path_items(path)))
+      self.log.debug( 'Mapped %r to %r' % (path, fs_path) )
 
       try:
-         fs_path = map_to_fs(path)
-         self.log.debug( 'Mapped %r to %r' % (path, fs_path) )
          if fs_path:
             self.log.debug("Node maps to filesystem => query system stat")
             st = MyStat()
-            abspath = map_to_fs(path)
-            if not exists(abspath):
+            if not exists(fs_path):
                return -errno.ENOENT
-            node = by_uri(self.sess, abspath)
+            node = by_uri(self.sess, fs_path)
             if node:
-               return os.lstat(abspath)
+               return os.lstat(fs_path)
             return st
          else:
             st = MyStat()
@@ -262,6 +371,8 @@ class MetaFilterFS(LoggingFuse):
    def readdir(self, path, offset):
       self.log.debug("readdir %r with offset %r" % (path, offset))
 
+      self.map = {}
+
       # default (required) entries
       entries = [ fuse.Direntry('.'), fuse.Direntry('..') ]
 
@@ -270,14 +381,19 @@ class MetaFilterFS(LoggingFuse):
 
       # split into path elements
       for node in from_incremental_query(self.sess, path):
-         entries.append(fuse.Direntry(node.basename.encode(
-            sys.getfilesystemencoding(), 'replace')))
+         if path.endswith('/__flat__'):
+            entries.append(fuse.Direntry(node.md5name.encode(
+               sys.getfilesystemencoding(), 'replace')))
+            self.map[node.md5name] = node.uri
+         else:
+            entries.append(fuse.Direntry(node.basename.encode(
+               sys.getfilesystemencoding(), 'replace')))
 
       # generate the output
       for r in entries:
          if not r.name:
             continue
-         self.log.debug("listing %s" % r)
+         self.log.debug("listing %s" % r.name)
          yield r
 
    def readdir_old(self, path, offset):
@@ -351,102 +467,13 @@ class MetaFilterFS(LoggingFuse):
    #    chunk = fptr.read(length)
    #    return chunk
 
-   class MetaFile(object):
-
-      def __init__(self, path, flags, *mode):
-
-         self.log = logging.getLogger("%s.%s" % (__name__, "MetaFile"))
-         try:
-            path = map_to_fs(path[1:])
-            self.log.debug("Opening file at path %s in %s" % (path, os.getcwd()))
-            self.file = os.fdopen(os.open(path, flags, *mode),
-                                  flag2mode(flags))
-            self.fd = self.file.fileno()
-            self.log.debug("Opened as %s" % self.file)
-         except Exception, exc:
-            self.log.exception(exc)
-
-      def read(self, length, offset, *args):
-         self.log.debug("Reading: %r" %locals() )
-         self.file.seek(offset)
-         return self.file.read(length)
-
-      def write(self, buf, offset):
-         self.file.seek(offset)
-         self.file.write(buf)
-         return len(buf)
-
-      def release(self, *args):
-         self.log.debug("Releasing: %r" %locals() )
-         self.file.close()
-
-      def _fflush(self):
-         if 'w' in self.file.mode or 'a' in self.file.mode:
-             self.file.flush()
-
-      def fsync(self, isfsyncfile):
-         self._fflush()
-         if isfsyncfile and hasattr(os, 'fdatasync'):
-             os.fdatasync(self.fd)
-         else:
-             os.fsync(self.fd)
-
-      def flush(self):
-         self._fflush()
-         # cf. xmp_flush() in fusexmp_fh.c
-         os.close(os.dup(self.fd))
-
-      def fgetattr(self):
-         try:
-            return os.fstat(self.fd)
-         except Exception, exc:
-            self.log.exception(exc)
-
-      def ftruncate(self, len):
-         self.file.truncate(len)
-
-      # def lock(self, cmd, owner, **kw):
-      #    # The code here is much rather just a demonstration of the locking
-      #    # API than something which actually was seen to be useful.
-
-      #    # Advisory file locking is pretty messy in Unix, and the Python
-      #    # interface to this doesn't make it better.
-      #    # We can't do fcntl(2)/F_GETLK from Python in a platfrom independent
-      #    # way. The following implementation *might* work under Linux. 
-      #    #
-      #    # if cmd == fcntl.F_GETLK:
-      #    #     import struct
-      #    # 
-      #    #     lockdata = struct.pack('hhQQi', kw['l_type'], os.SEEK_SET,
-      #    #                            kw['l_start'], kw['l_len'], kw['l_pid'])
-      #    #     ld2 = fcntl.fcntl(self.fd, fcntl.F_GETLK, lockdata)
-      #    #     flockfields = ('l_type', 'l_whence', 'l_start', 'l_len', 'l_pid')
-      #    #     uld2 = struct.unpack('hhQQi', ld2)
-      #    #     res = {}
-      #    #     for i in xrange(len(uld2)):
-      #    #          res[flockfields[i]] = uld2[i]
-      #    #  
-      #    #     return fuse.Flock(**res)
-
-      #    # Convert fcntl-ish lock parameters to Python's weird
-      #    # lockf(3)/flock(2) medley locking API...
-      #    op = { fcntl.F_UNLCK : fcntl.LOCK_UN,
-      #           fcntl.F_RDLCK : fcntl.LOCK_SH,
-      #           fcntl.F_WRLCK : fcntl.LOCK_EX }[kw['l_type']]
-      #    if cmd == fcntl.F_GETLK:
-      #        return -EOPNOTSUPP
-      #    elif cmd == fcntl.F_SETLK:
-      #        if op != fcntl.LOCK_UN:
-      #            op |= fcntl.LOCK_NB
-      #    elif cmd == fcntl.F_SETLKW:
-      #        pass
-      #    else:
-      #        return -EINVAL
-
-      #    fcntl.lockf(self.fd, op, kw['l_start'], kw['l_len'])
-
    def main(self, *a, **kw):
-      self.file_class = self.MetaFile
+
+      class WrappedMetaFile(MetaFile):
+         def __init__(self2, *args, **kwargs):
+            MetaFile.__init__(self2, self, *args, **kwargs)
+
+      self.file_class = WrappedMetaFile
       return fuse.Fuse.main(self, *a, **kw)
 
 def main():

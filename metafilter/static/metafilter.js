@@ -4,11 +4,11 @@ $(document).ready(function() {
         });
 });
 
-function set_rating(path, value){
+function set_rating(element, path, value){
    $.ajax({
       url: "/set_rating",
       type: "POST",
       data: {path: path, value: value},
-      success: function(){alert(1);}
+      success: function(){element.addClass("active_rating");}
          })
 }

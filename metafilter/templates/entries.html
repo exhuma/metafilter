@@ -26,11 +26,11 @@
             </td>
             <td>{{ row.basename }}</td>
             <td>
-               <a class="{{ row.rating==1 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating('{{row.path}}', 1);">1</a>&nbsp;
-               <a class="{{ row.rating==2 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating('{{row.path}}', 2);">2</a>&nbsp;
-               <a class="{{ row.rating==3 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating('{{row.path}}', 3);">3</a>&nbsp;
-               <a class="{{ row.rating==4 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating('{{row.path}}', 4);">4</a>&nbsp;
-               <a class="{{ row.rating==5 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating('{{row.path}}', 5);">5</a>
+               <a class="{{ row.rating==1 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 1); return false;">1</a>&nbsp;
+               <a class="{{ row.rating==2 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 2); return false;">2</a>&nbsp;
+               <a class="{{ row.rating==3 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 3); return false;">3</a>&nbsp;
+               <a class="{{ row.rating==4 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 4); return false;">4</a>&nbsp;
+               <a class="{{ row.rating==5 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 5); return false;">5</a>
             </td>
             <td>{{ row.created }}</td>
             <td>{{ row.updated }}</td>

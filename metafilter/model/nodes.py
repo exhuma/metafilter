@@ -241,7 +241,7 @@ def contains_text(sess, parent_uri=None, text=None):
 
    return qry
 
-def rated(sess, nodes):
+def rated(sess, nodes, flatten=False):
 
    query_string = 'rating/%s' % str.join('/', nodes)
 
@@ -268,9 +268,12 @@ def rated(sess, nodes):
    parent_path = uri_to_ltree(parent_uri)
    depth = uri_depth(parent_uri)
 
-   stmt = sess.query(
-         distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-         )
+   if flatten:
+      stmt = sess.query(Node)
+   else:
+      stmt = sess.query(
+            distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
+            )
 
    if op == 'gt':
       stmt = stmt.filter(Node.rating > value)
@@ -286,14 +289,17 @@ def rated(sess, nodes):
       stmt = stmt.filter(Node.rating != value)
 
    stmt = stmt.filter( Node.path.op("<@")(parent_path) )
-   stmt = stmt.subquery()
-   qry = sess.query( Node )
-   qry = qry.filter( Node.path.in_(stmt) )
-   qry = qry.order_by( func.subpath(Node.path, -1, 1) )
 
-   return qry
+   if not flatten:
+      stmt = stmt.subquery()
+      qry = sess.query( Node )
+      qry = qry.filter( Node.path.in_(stmt) )
+      qry = qry.order_by( func.subpath(Node.path, -1, 1) )
+      return qry
 
-def all(sess, nodes):
+   return stmt
+
+def all(sess, nodes, flatten=False):
 
    parent_uri = '/'.join(nodes)
 
@@ -312,7 +318,7 @@ def all(sess, nodes):
 
    return qry
 
-def dated(sess, nodes):
+def dated(sess, nodes, flatten=False):
 
    query_string = 'date/%s' % str.join('/', nodes)
 
@@ -418,13 +424,18 @@ def from_incremental_query(sess, query):
    LOG.debug('Query nodes: %r' % query_nodes)
 
    query_type = query_nodes.pop(0).lower()
+   if query_nodes and query_nodes[-1] == "__flat__":
+      query_nodes.pop()
+      flatten = True
+   else:
+      flatten = False
 
    if query_type == 'rating':
-      return rated(sess, query_nodes)
+      return rated(sess, query_nodes, flatten)
    elif query_type == 'date':
-      return dated(sess, query_nodes)
+      return dated(sess, query_nodes, flatten)
    elif query_type == 'all':
-      return all(sess, query_nodes)
+      return all(sess, query_nodes, flatten)
 
 @memoized
 def from_query(sess, parent_uri, query):
@@ -535,5 +546,20 @@ class Node(DummyNode):
       if self.uri == '/':
          return 'ROOT'
       return basename(self.uri)
+
+   @property
+   def md5name(self):
+      from hashlib import md5
+      if self.uri == '/':
+         return 'ROOT'
+
+      extension_parts = self.uri.rsplit('.', 1)
+      if len(extension_parts) > 1:
+         ext = extension_parts[-1]
+      else:
+         ext = ""
+
+      out = "%s.%s" % (md5(self.uri).hexdigest(), ext)
+      return out
 
 mapper(Node, nodes_table)
