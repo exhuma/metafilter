@@ -13,5 +13,11 @@
   <hr />
   <form action='/new_query' method="POST" class='query-edit-box'>
      Query: <input name="query" type="text" /><input type='submit' />
+  </form><br /><br />
+  Tag all: <br />
+  <form action='/tag_all' method="POST" class='query-edit-box'>
+     Query: <input name="query" type="text" /><br />
+     Tags: <input name="tags" type="text" />
+     <input type='submit' />
   </form>
 {% endblock %}

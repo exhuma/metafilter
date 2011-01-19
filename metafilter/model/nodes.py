@@ -7,6 +7,7 @@ from metafilter.model.queries import Query, query_table
 from os.path import sep, isdir, basename, exists
 from datetime import datetime, timedelta
 import re
+from sys import getfilesystemencoding
 
 import parsedatetime.parsedatetime as pdt
 import parsedatetime.parsedatetime_consts as pdc
@@ -70,7 +71,7 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
 
       # store folder nodes
       for node in root.split(sep):
-         detached_file = Node(root)
+         detached_file = Node(root.decode(getfilesystemencoding()))
          detached_file.mimetype = "other/directory"
 
          try:
@@ -164,9 +165,29 @@ def set_tags(sess, uri, new_tags):
    sess.merge(node)
    sess.flush()
 
+def remove_empty_dirs(sess, root):
+   root_ltree = uri_to_ltree(root)
+   nodes = root_ltree.split('.')
+
+   if not nodes:
+      return
+
+   qry = select([Node.path])
+   qry = qry.where( Node.path.op("<@")('.'.join(nodes)) )
+   qry = qry.where( Node.mimetype == 'other/directory' )
+   child_nodes = [ row[0] for row in qry.execute() ]
+
+   for node in child_nodes:
+      qry = select([func.count(Node.uri)])
+      qry = qry.where( Node.path.op("<@")(node) )
+      for row in qry.execute():
+         if row[0] == 1:
+            LOG.debug('Removing empty dir: %r' % node)
+            nodes_table.delete(nodes_table.c.path == node).execute()
+
 def remove_orphans(sess, root):
    root_ltree = uri_to_ltree(root)
-   qry = select([Node.uri])
+   qry = select([Node.uri, Node.mimetype])
    qry = qry.where( Node.path.op("<@")(root_ltree) )
    for row in qry.execute():
       if not exists(row[0]):
@@ -176,6 +197,8 @@ def remove_orphans(sess, root):
             sess.commit()
          except:
             sess.rollback()
+
+   remove_empty_dirs(sess, root)
 
 def rated(stmt, parent_uri, nodes):
 
@@ -424,6 +447,29 @@ def map_to_fs(query):
    return out
 
    return None
+
+def map_to_fs2(query):
+   """
+   Remove any query specific elements, leaving only the fs-path
+   """
+   LOG.debug('Mapping to FS %r' % query)
+   query_nodes = query.split("/")
+
+   if not query_nodes:
+      return None
+
+   # pop the query type off the beginning
+   query_types = query_nodes.pop(0).lower()
+   query_types = [x.strip() for x in query_types.split(',')]
+
+   LOG.debug('Query types: %r' % query_types)
+   chop_params = expected_params(query_types)+1
+   LOG.debug('Chop num: %r' % chop_params)
+   out = '/' + '/'.join(query_nodes[chop_params:])
+   LOG.info('Expected params: %d' % chop_params)
+   LOG.info('remainder: %r' % query_nodes[chop_params:])
+
+   return out
 
 class DummyNode(object):
 

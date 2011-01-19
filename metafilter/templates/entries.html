@@ -1,5 +1,9 @@
 {% extends "layout.html" %}
 {% block body %}
+
+<form action='/tag_all' method="POST" class='query-edit-box'>
+   <strong>Tag all:</strong> <input name="query" type="hidden" value="{{query}}" /> <input name="tags" type="text" /> <input type='submit' />
+</form>
 <table id="entryList">
    <tr>
       <td><a href="{{url_for('query', query=query[0:query.rfind('/')])}}">.. (Up one level)</a></td>

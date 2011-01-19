@@ -1,4 +1,4 @@
-from flask import Flask, g, render_template, request, redirect, make_response
+from flask import Flask, g, render_template, request, redirect, make_response, url_for
 from metafilter.model import Node, Query, Session, set_dsn
 from metafilter.model import queries, nodes
 import logging
@@ -25,8 +25,7 @@ def after_request(response):
 @app.route('/query')
 @app.route('/query/<path:query>')
 def query(query="root"):
-   from metafilter.model.nodes import from_incremental_query
-   result = from_incremental_query(g.sess, query)
+   result = nodes.from_incremental_query(g.sess, query)
    try:
       result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
    except Exception, exc:
@@ -62,6 +61,24 @@ def set_rating():
    from metafilter.model.nodes import set_rating
    set_rating(request.form["path"], int(request.form['value']))
    return "OK"
+
+@app.route('/tag_all', methods=["POST"])
+def tag_all():
+   node_qry = nodes.from_incremental_query(g.sess, request.form["query"])
+   tags = []
+   for tagname in request.form['tags'].split(','):
+      tagname = tagname.strip()
+      tag = nodes.Tag.find(g.sess, tagname)
+      if not tag:
+         tag = nodes.Tag(tagname)
+      tags.append(tag)
+
+   for node in node_qry:
+      if node.is_dir():
+         continue
+      node.tags.extend(tags)
+
+   return redirect(url_for('query', query=request.form['query']))
 
 @app.route('/new_query', methods=["POST"])
 def new_query():

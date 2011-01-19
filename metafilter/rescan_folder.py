@@ -18,6 +18,8 @@ def main():
                      metavar="DSN")
    parser.add_option("-s", "--since", dest="since", default=None,
                      help="Only scan file that changed after this date (format: YYYY-MM-DD)")
+   parser.add_option("-p", "--purge", dest="purge", default=False, action="store_true",
+            help="Remove orphans after scan. WARNING: this removes file not available on disk! If you work with removable devices, the device should be mounted and available before running this. Otherwise all files on from that device will be removed from the index!")
    (options, args) = parser.parse_args()
 
    if not options.dsn:
@@ -36,7 +38,10 @@ def main():
 
    sess = Session()
    update_nodes_from_path(sess, args[0], options.since)
-   remove_orphans(sess, args[0])
+
+   if options.purge:
+      remove_orphans(sess, args[0])
+
    sess.close()
 
 if __name__ == '__main__':
