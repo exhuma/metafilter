@@ -2,7 +2,7 @@ from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, Date
 from sqlalchemy.orm import mapper, aliased, relation
 from sqlalchemy.sql import func, distinct
 from sqlalchemy.exc import IntegrityError, DataError
-from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
+from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth, Session
 from metafilter.model.queries import Query, query_table
 from os.path import sep, isdir, basename, exists
 from datetime import datetime, timedelta
@@ -41,6 +41,7 @@ TIME_PATTERN=re.compile(r'(\d{4}-\d{2}-\d{2})?(t)?(\d{4}-\d{2}-\d{2})?')
 LOG = logging.getLogger(__name__)
 PCONST = pdc.Constants()
 CALENDAR = pdt.Calendar(PCONST)
+FLATTEN_MAP = {}
 
 @memoized
 def by_uri(session, uri):
@@ -426,7 +427,7 @@ def from_incremental_query(sess, query):
 
    return stmt
 
-def map_to_fs(query):
+def map_to_fsold(query):
    """
    Remove any query specific elements, leaving only the fs-path
    """
@@ -448,28 +449,64 @@ def map_to_fs(query):
 
    return None
 
-def map_to_fs2(query):
+@memoized
+def map_to_fs(query):
    """
    Remove any query specific elements, leaving only the fs-path
    """
    LOG.debug('Mapping to FS %r' % query)
+   if query[0] == '/':
+      query = query[1:]
    query_nodes = query.split("/")
 
    if not query_nodes:
       return None
 
    # pop the query type off the beginning
-   query_types = query_nodes.pop(0).lower()
+   query_types = query_nodes[0].lower()
    query_types = [x.strip() for x in query_types.split(',')]
 
    LOG.debug('Query types: %r' % query_types)
-   chop_params = expected_params(query_types)+1
-   LOG.debug('Chop num: %r' % chop_params)
-   out = '/' + '/'.join(query_nodes[chop_params:])
-   LOG.info('Expected params: %d' % chop_params)
-   LOG.info('remainder: %r' % query_nodes[chop_params:])
+   chop_params = expected_params(query_types)
+   LOG.debug('Expected number of params: %d' % chop_params)
 
-   return out
+   map_nodes = query_nodes[chop_params+1:]
+
+   # Windows adds a wildcard. We'll remove it again...
+   if map_nodes and map_nodes[-1] == '*':
+      map_nodes.pop()
+
+   if not map_nodes:
+      return '/'
+
+   if map_nodes[0] == 'ROOT' and '__flat__' not in map_nodes:
+      LOG.debug('normal mapping of %r ' % map_nodes)
+      map_nodes.pop(0) # remove leading 'ROOT'
+
+      LOG.info('remainder: %r' % map_nodes)
+      out = '/' + '/'.join(map_nodes)
+      return out
+
+   elif map_nodes[-1] == '__flat__':
+      return '/'
+
+   elif "__flat__" in map_nodes:
+
+      flat_pos = map_nodes.index('__flat__')
+      mapping_base = query_nodes[0:query_nodes.index('__flat__')+1]
+      md5name = map_nodes[-1] # in normal cases, we should only have one entry after __flat__. Which is it's whole purpose!
+
+      LOG.debug('flattened mapping of %r ' % map_nodes)
+      mapping_base = '/'.join(mapping_base)
+
+      if mapping_base not in FLATTEN_MAP:
+         LOG.debug('populating map for %r' % mapping_base)
+         FLATTEN_MAP[mapping_base] = {}
+         stmt = from_incremental_query(Session(), mapping_base)
+         for node in stmt:
+            FLATTEN_MAP[mapping_base][node.md5name] = node.uri
+
+      return FLATTEN_MAP[mapping_base].get(md5name, None)
 
 class DummyNode(object):
 

@@ -116,16 +116,7 @@ class MetaFile(object):
    def __init__(self, fs, path, flags, *mode):
       self.log = logging.getLogger("%s.%s" % (__name__, "MetaFile"))
 
-      if '__flat__' in path:
-         self.log.debug("Retrieving stat for flattened path %r" % (path))
-         nodes = path.split(sep)
-         md5name = nodes[-1]
-         path = fs.map.get(md5name, None)
-      else:
-         # remove leading '/'
-         path = path[1:]
-         self.log.debug("Retrieving stat for path %r => %s" % (path, path_items(path)))
-         path = map_to_fs(path)
+      path = map_to_fs(path)
 
       try:
          self.log.debug("Opening file at path %s in %s" % (path, os.getcwd()))
@@ -225,7 +216,6 @@ class MetaFilterFS(LoggingFuse):
       self.sess = Session()
       self.root = '/'
       self.dsn = "sqlite://"
-      self.map = {}
 
    def setup_logging(self):
       stdout = logging.StreamHandler()
@@ -248,16 +238,7 @@ class MetaFilterFS(LoggingFuse):
       if path.startswith('/.Trash'):
          return -errno.ENOENT
 
-      if '__flat__' in path:
-         self.log.debug("Retrieving stat for flattened path %r" % (path))
-         nodes = path.split(sep)
-         md5name = nodes[-1]
-         fs_path = self.map.get(md5name, None)
-      else:
-         # remove leading '/'
-         path = path[1:]
-         self.log.debug("Retrieving stat for path %r => %s" % (path, path_items(path)))
-         fs_path = map_to_fs(path)
+      fs_path = map_to_fs(path)
 
       self.log.debug( 'Mapped %r to %r' % (path, fs_path) )
 
@@ -281,8 +262,6 @@ class MetaFilterFS(LoggingFuse):
    def readdir(self, path, offset):
       self.log.info("*** readdir %r with offset %r" % (path, offset))
 
-      self.map = {}
-
       # default (required) entries
       entries = [ fuse.Direntry('.'), fuse.Direntry('..') ]
 
@@ -294,7 +273,6 @@ class MetaFilterFS(LoggingFuse):
          if path.endswith('/__flat__'):
             entries.append(fuse.Direntry(node.md5name.encode(
                sys.getfilesystemencoding(), 'replace')))
-            self.map[node.md5name] = node.uri
          else:
             entries.append(fuse.Direntry(node.basename.encode(
                sys.getfilesystemencoding(), 'replace')))
