@@ -119,7 +119,6 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
          mimetype, _ = mimetypes.guess_type(path)
 
          detached_file = Node(path)
-         #detached_file.md5 = file_md5(path)
          detached_file.mimetype = mimetype
          detached_file.created = create_time
          detached_file.updated = mod_time
@@ -200,6 +199,26 @@ def remove_orphans(sess, root):
             sess.rollback()
 
    remove_empty_dirs(sess, root)
+
+def calc_md5(sess, root):
+   root_ltree = uri_to_ltree(root)
+   qry = sess.query(Node)
+   qry = qry.filter( Node.path.op("<@")(root_ltree) )
+   qry = qry.filter( Node.mimetype != 'other/directory' )
+   count = 0
+   for node in qry:
+      if not exists(node.uri):
+         continue
+      node.md5 = file_md5(node.uri)
+      LOG.info('Updated md5 of %s' % node)
+      count += 1
+
+      if count % 500 == 0:
+         # commit from time to time
+         sess.commit()
+         LOG.info('commit')
+   sess.commit()
+   LOG.info('commit')
 
 def rated(stmt, parent_uri, nodes):
 
@@ -310,6 +329,7 @@ def expected_params(query_types):
    num = 0
 
    for type in query_types:
+
       if type == 'rating':
          num += 2
 
@@ -331,12 +351,12 @@ def from_incremental_query(sess, query):
    if not query or query == 'root' or query == '/':
       # list the available query schemes
       return [
+            DummyNode('all'),
+            DummyNode('date'),
+            DummyNode('in_path'),
+            DummyNode('named_queries'),
             DummyNode('rating'),
             DummyNode('tag'),
-            DummyNode('date'),
-            DummyNode('all'),
-            DummyNode('named_queries'),
-            DummyNode('in_path'),
             ]
    else:
       if query.startswith('root'):
