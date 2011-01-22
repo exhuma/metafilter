@@ -113,6 +113,11 @@ def delete_query(query):
    queries.delete( g.sess, query )
    return "OK"
 
+@app.route("/duplicates")
+def duplicates():
+   return render_template("duplicates.html",
+         duplicates=nodes.duplicates(g.sess))
+
 if __name__ == "__main__":
    app.debug = True
    logging.basicConfig(level=logging.DEBUG)

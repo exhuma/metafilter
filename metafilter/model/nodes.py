@@ -222,8 +222,6 @@ def calc_md5(sess, root):
 
 def rated(stmt, parent_uri, nodes):
 
-   query_string = 'rating/%s' % str.join('/', nodes)
-
    op = nodes.pop(0)
    value = int(nodes.pop(0))
 
@@ -249,6 +247,13 @@ def in_path(stmt, nodes):
    substring = nodes.pop(0)
    LOG.debug("Finding entries containing %s in path" % (substring))
    stmt = stmt.filter(Node.uri.ilike('%%%s%%' % substring))
+   return stmt
+
+def has_md5(stmt, parent_uri, nodes):
+
+   md5 = nodes.pop(0)
+   LOG.debug("Finding entries with md5 %s" % (md5))
+   stmt = stmt.filter(Node.md5 == md5)
    return stmt
 
 def all(sess, nodes, flatten=False):
@@ -319,6 +324,13 @@ def tagged(sess, stmt, parent_uri, nodes):
 
    return stmt
 
+def duplicates(sess):
+   qry = sess.query(Node.md5, func.count(Node.md5))
+   qry = qry.group_by(Node.md5)
+   qry = qry.having(func.count(Node.md5) > 1)
+   qry = qry.order_by(func.count(Node.md5).desc())
+   return qry
+
 def set_rating(path, value):
    upd = nodes_table.update()
    upd = upd.values(rating=value)
@@ -334,6 +346,9 @@ def expected_params(query_types):
          num += 2
 
       if type == 'in_path':
+         num += 1
+
+      if type == 'md5':
          num += 1
 
       if type == 'date':
@@ -354,6 +369,7 @@ def from_incremental_query(sess, query):
             DummyNode('all'),
             DummyNode('date'),
             DummyNode('in_path'),
+            DummyNode('md5'),
             DummyNode('named_queries'),
             DummyNode('rating'),
             DummyNode('tag'),
@@ -432,6 +448,9 @@ def from_incremental_query(sess, query):
 
       if query_type == 'rating':
          stmt = rated(stmt, parent_uri, query_nodes)
+
+      if query_type == 'md5':
+         stmt = has_md5(stmt, parent_uri, query_nodes)
 
       if query_type == 'in_path':
          stmt = in_path(stmt, query_nodes)

@@ -7,9 +7,21 @@ import sys
 from optparse import OptionParser
 
 import logging
-logging.basicConfig(level=logging.INFO)
-LOG = logging.getLogger(__name__)
+import logging.handlers
 
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.DEBUG)
+
+ERROR_HANDLER = logging.handlers.RotatingFileHandler(filename='errors.log', maxBytes=102400, backupCount=5)
+CONSOLE_HANDLER = logging.StreamHandler()
+ERROR_HANDLER.setLevel(logging.WARNING)
+CONSOLE_HANDLER.setLevel(logging.WARNING)
+FORMATTER = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+ERROR_HANDLER.setFormatter(FORMATTER)
+CONSOLE_HANDLER.setFormatter(FORMATTER)
+logging.getLogger().setLevel(logging.DEBUG)
+logging.getLogger().addHandler(ERROR_HANDLER)
+logging.getLogger().addHandler(CONSOLE_HANDLER)
 
 def main():
    parser = OptionParser()
@@ -24,7 +36,12 @@ def main():
             help="Remove orphans after scan. WARNING: this removes file not available on disk! If you work with removable devices, the device should be mounted and available before running this. Otherwise all files on from that device will be removed from the index!")
    parser.add_option("-m", "--md5", dest="md5", default=False, action="store_true",
             help="Calculate md5sums after scan. This can take a long time, but is necessary to detect moves & duplictates")
+   parser.add_option("-v", "--verbose", dest="verbose", default=False, action="store_true",
+            help="Verbose output to stdout")
    (options, args) = parser.parse_args()
+
+   if options.verbose:
+      CONSOLE_HANDLER.setLevel(logging.DEBUG)
 
    if not options.dsn:
       print >> sys.stderr, "The '-d/--dsn' option is required!"
