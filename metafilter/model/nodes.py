@@ -2,7 +2,7 @@ from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, Date
 from sqlalchemy.orm import mapper, aliased, relation
 from sqlalchemy.sql import func, distinct
 from sqlalchemy.exc import IntegrityError, DataError
-from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth, Session
+from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from metafilter.model.queries import Query, query_table
 from os.path import sep, isdir, basename, exists
 from datetime import datetime, timedelta
@@ -71,7 +71,12 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
 
       # store folder nodes
       for node in root.split(sep):
-         detached_file = Node(root.decode(getfilesystemencoding()))
+         try:
+            detached_file = Node(root.decode(getfilesystemencoding()))
+         except UnicodeDecodeError, exc:
+            LOG.error("%r: %s" % (path, exc))
+            continue
+
          detached_file.mimetype = "other/directory"
 
          try:
@@ -488,7 +493,8 @@ def map_to_fsold(query):
 
    return None
 
-def map_to_fs(query):
+@memoized
+def map_to_fs(sess, query):
    """
    Remove any query specific elements, leaving only the fs-path
    """
@@ -537,14 +543,21 @@ def map_to_fs(query):
       LOG.debug('flattened mapping of %r ' % map_nodes)
       mapping_base = '/'.join(mapping_base)
 
-      if mapping_base not in FLATTEN_MAP:
-         LOG.debug('populating map for %r' % mapping_base)
-         FLATTEN_MAP[mapping_base] = {}
-         stmt = from_incremental_query(Session(), mapping_base)
-         for node in stmt:
-            FLATTEN_MAP[mapping_base][node.md5name] = node.uri
+      flatten_map = {}
+      flatten_map[mapping_base] = {}
+      stmt = from_incremental_query(sess, mapping_base)
+      for node in stmt:
+         flatten_map[mapping_base][node.md5name] = node.uri
+      return flatten_map[mapping_base].get(md5name, None)
 
-      return FLATTEN_MAP[mapping_base].get(md5name, None)
+      #if mapping_base not in FLATTEN_MAP:
+      #   LOG.debug('populating map for %r' % mapping_base)
+      #   FLATTEN_MAP[mapping_base] = ({}, datetime.now())
+      #   stmt = from_incremental_query(sess, mapping_base)
+      #   for node in stmt:
+      #      FLATTEN_MAP[mapping_base][0][node.md5name] = node.uri
+
+      #return FLATTEN_MAP[mapping_base][0].get(md5name, None)
 
 class DummyNode(object):
 
@@ -617,3 +630,4 @@ mapper(Tag, tag_table)
 mapper(Node, nodes_table, properties={
    'tags': relation(Tag, secondary=node_has_tag_table, backref='nodes')
    })
+

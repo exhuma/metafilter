@@ -116,7 +116,7 @@ class MetaFile(object):
    def __init__(self, fs, path, flags, *mode):
       self.log = logging.getLogger("%s.%s" % (__name__, "MetaFile"))
 
-      path = map_to_fs(path)
+      path = map_to_fs(fs.sess, path)
 
       try:
          self.log.debug("Opening file at path %s in %s" % (path, os.getcwd()))
@@ -238,7 +238,7 @@ class MetaFilterFS(LoggingFuse):
       if path.startswith('/.Trash'):
          return -errno.ENOENT
 
-      fs_path = map_to_fs(path)
+      fs_path = map_to_fs(self.sess, path)
 
       self.log.debug( 'Mapped %r to %r' % (path, fs_path) )
 

@@ -23,11 +23,11 @@ class memoized(object):
       self.cache = {}
 
    def __call__(self, *args):
-      obsoletion = datetime.now() - timedelta(days=1)
+      obsoletion = datetime.now() - timedelta(seconds=60*60)
       if args in self.cache and self.cache[args][1] < obsoletion:
          # value too old. Remove it from the cache
          LOG.debug("Removing obsolete value for args %r from cache." % (args,))
-         self.cache.pop(args)
+         del(self.cache[args])
 
       try:
          output = self.cache[args][0]
