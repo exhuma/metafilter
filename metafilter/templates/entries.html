@@ -7,7 +7,12 @@
 <br />
 
 <br />
-<a href="{{url_for('query', query=query[0:query.rfind('/')])}}">.. (Up one level)</a>
+<a href="{{url_for('query', query=query[0:query.rfind('/')])}}">.. (Up one level)</a>&nbsp;-&nbsp;
+{% if query.endswith('/__flat__') %}
+   <a href="{{url_for('query', query=query[0:-9])}}">Unflatten</a>
+{% else %}
+   <a href="{{url_for('query', query="%s/__flat__" % query)}}">Flatten from here</a>
+{% endif %}
 <br />
 
 <table id="entryList">
