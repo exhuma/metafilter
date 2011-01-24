@@ -118,6 +118,11 @@ def duplicates():
    return render_template("duplicates.html",
          duplicates=nodes.duplicates(g.sess))
 
+@app.route("/acknowledge_duplicate/<md5>")
+def acknowledge_duplicate(md5):
+   nodes.acknowledge_duplicate(g.sess, md5)
+   return redirect(url_for('duplicates'))
+
 if __name__ == "__main__":
    app.debug = True
    logging.basicConfig(level=logging.DEBUG)

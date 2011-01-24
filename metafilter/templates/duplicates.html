@@ -11,9 +11,8 @@
          <td>
             <a href="{{url_for('query', query='md5/%s' % (md5))}}">{{md5}}</a>
          </td>
-         <td>
-            {{ count }}
-         </td>
+         <td> {{ count }} </td>
+         <td><a href="{{url_for('acknowledge_duplicate', md5=md5)}}">Don't list this in the future</a>
       </tr>
    {% else %}
    <tr>

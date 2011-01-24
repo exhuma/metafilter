@@ -1,4 +1,4 @@
-from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, DateTime, Boolean, UniqueConstraint, Sequence, select, func, update
+from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, DateTime, Boolean, UniqueConstraint, Sequence, select, func, update, not_
 from sqlalchemy.orm import mapper, aliased, relation
 from sqlalchemy.sql import func, distinct
 from sqlalchemy.exc import IntegrityError, DataError
@@ -35,6 +35,10 @@ tag_table = Table('tag', metadata,
 node_has_tag_table = Table('node_has_tag', metadata,
    Column('uri', Unicode, ForeignKey('node.uri'), nullable=False, primary_key=True),
    Column('tag', Unicode, ForeignKey('tag.name'), nullable=False, primary_key=True),
+)
+
+acknowledged_duplicates_table = Table('acknowledged_duplicates', metadata,
+   Column('md5', String, nullable=False, primary_key=True),
 )
 
 TIME_PATTERN=re.compile(r'(\d{4}-\d{2}-\d{2})?(t)?(\d{4}-\d{2}-\d{2})?')
@@ -331,11 +335,18 @@ def tagged(sess, stmt, parent_uri, nodes):
    return stmt
 
 def duplicates(sess):
+
+   acks = select([acknowledged_duplicates_table.c.md5])
+
    qry = sess.query(Node.md5, func.count(Node.md5))
+   qry = qry.filter(not_(Node.md5.in_(acks)))
    qry = qry.group_by(Node.md5)
    qry = qry.having(func.count(Node.md5) > 1)
    qry = qry.order_by(func.count(Node.md5).desc())
    return qry
+
+def acknowledge_duplicate(sess, md5):
+   acknowledged_duplicates_table.insert(values={'md5': md5}).execute()
 
 def set_rating(path, value):
    upd = nodes_table.update()

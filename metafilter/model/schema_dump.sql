@@ -1716,6 +1716,24 @@ SET default_tablespace = '';
 SET default_with_oids = false;
 
 --
+-- Name: acknowledged_duplicates; Type: TABLE; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+CREATE TABLE acknowledged_duplicates (
+    md5 text NOT NULL
+);
+
+
+ALTER TABLE public.acknowledged_duplicates OWNER TO filemeta;
+
+--
+-- Name: TABLE acknowledged_duplicates; Type: COMMENT; Schema: public; Owner: filemeta
+--
+
+COMMENT ON TABLE acknowledged_duplicates IS 'Contains a list of all md5sums that should not be listed in the duplicates';
+
+
+--
 -- Name: node; Type: TABLE; Schema: public; Owner: filemeta; Tablespace: 
 --
 
@@ -1767,6 +1785,14 @@ CREATE TABLE tag (
 
 
 ALTER TABLE public.tag OWNER TO filemeta;
+
+--
+-- Name: acknowledged_duplicates_pkey; Type: CONSTRAINT; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+ALTER TABLE ONLY acknowledged_duplicates
+    ADD CONSTRAINT acknowledged_duplicates_pkey PRIMARY KEY (md5);
+
 
 --
 -- Name: node_has_tag_pkey; Type: CONSTRAINT; Schema: public; Owner: filemeta; Tablespace: 
