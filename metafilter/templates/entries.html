@@ -4,15 +4,21 @@
 <form action='/tag_all' method="POST" class='query-edit-box'>
    <strong>Tag all:</strong> <input name="query" type="hidden" value="{{query}}" /> <input name="tags" type="text" /> <input type='submit' />
 </form>
+<br />
+
+<br />
+<a href="{{url_for('query', query=query[0:query.rfind('/')])}}">.. (Up one level)</a>
+<br />
+
 <table id="entryList">
    <tr>
-      <td><a href="{{url_for('query', query=query[0:query.rfind('/')])}}">.. (Up one level)</a></td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
+      <th>&nbsp;</th>
+      <th>File Name</th>
+      <th>Mime Type</th>
+      <th>Rating</th>
+      <th>Created</th>
+      <th>Changed</th>
+      <th>MD5 Hash</th>
    </tr>
    {% for row in entries %}
       {% if row.is_dir() %}
@@ -37,17 +43,23 @@
                </a>
             </td>
             <td>
-               {{ row.basename }}
+               <a class="more-info" title="{{row.uri}}">{{ row.basename }}</a>
                <br />
                <span id="{{row.uri}}" class='tags-edit'>{{ row.tags|sort|join(', ') }}</span>
             </td>
             <td>{{ row.mimetype }}</td>
             <td>
-               <a class="{{ row.rating==1 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 1); return false;">1</a>&nbsp;
-               <a class="{{ row.rating==2 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 2); return false;">2</a>&nbsp;
-               <a class="{{ row.rating==3 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 3); return false;">3</a>&nbsp;
-               <a class="{{ row.rating==4 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 4); return false;">4</a>&nbsp;
-               <a class="{{ row.rating==5 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 5); return false;">5</a>
+               <a class="rating_button {{ row.rating==-5 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', -5); return false;">-5</a>&nbsp;
+               <a class="rating_button {{ row.rating==-4 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', -4); return false;">-4</a>&nbsp;
+               <a class="rating_button {{ row.rating==-3 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', -3); return false;">-3</a>&nbsp;
+               <a class="rating_button {{ row.rating==-2 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', -2); return false;">-2</a>&nbsp;
+               <a class="rating_button {{ row.rating==-1 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', -1); return false;">-1</a>&nbsp;
+               <a class="rating_button {{ row.rating==0 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 0); return false;">0</a>&nbsp;
+               <a class="rating_button {{ row.rating==1 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 1); return false;">1</a>&nbsp;
+               <a class="rating_button {{ row.rating==2 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 2); return false;">2</a>&nbsp;
+               <a class="rating_button {{ row.rating==3 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 3); return false;">3</a>&nbsp;
+               <a class="rating_button {{ row.rating==4 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 4); return false;">4</a>&nbsp;
+               <a class="rating_button {{ row.rating==5 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{row.path}}', 5); return false;">5</a>
             </td>
             <td>{{ row.created }}</td>
             <td>{{ row.updated }}</td>

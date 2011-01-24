@@ -12,6 +12,21 @@
    font-family: 'Anonymous Pro';
 }
 
+.rating_button{
+   display: inline-block;
+   width: 1em;
+   text-align: center;
+}
+
+.inactive_rating{
+   color: #aaf;
+}
+
+A.more-info{
+   border-bottom: 1px dashed #ccc;
+   cursor: help;
+}
+
 .active_rating{
    font-weight: bold;
    border: 1px solid #aaa;
