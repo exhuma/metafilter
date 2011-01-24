@@ -43,7 +43,6 @@ PCONST = pdc.Constants()
 CALENDAR = pdt.Calendar(PCONST)
 FLATTEN_MAP = {}
 
-@memoized
 def by_uri(session, uri):
    qry = session.query(Node)
    qry = qry.filter( Node.uri == uri )
@@ -118,17 +117,19 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
 
          mimetype, _ = mimetypes.guess_type(path)
 
-         detached_file = Node(path)
-         detached_file.mimetype = mimetype
-         detached_file.created = create_time
-         detached_file.updated = mod_time
-
          try:
+            detached_file = Node(path.decode(getfilesystemencoding()))
+            detached_file.mimetype = mimetype
+            detached_file.created = create_time
+            detached_file.updated = mod_time
+
             attached_file = sess.merge(detached_file)
             sess.add(attached_file)
+            sess.commit()
             LOG.info("Added %s" % attached_file)
          except Exception, exc:
-            LOG.error(str(exc))
+            LOG.error("%r: %s" % (path, exc))
+            sess.rollback()
          scanned_files += 1
 
       if scanned_files > 0:
@@ -359,7 +360,6 @@ def expected_params(query_types):
 
    return num
 
-@memoized
 def from_incremental_query(sess, query):
    LOG.debug('parsing incremental query %r' % query)
 
@@ -488,7 +488,6 @@ def map_to_fsold(query):
 
    return None
 
-@memoized
 def map_to_fs(query):
    """
    Remove any query specific elements, leaving only the fs-path
