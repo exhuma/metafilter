@@ -69,6 +69,7 @@ def main():
       calc_md5(sess, args[0])
 
    sess.close()
+   print "Rescan finished"
 
 if __name__ == '__main__':
    main()
