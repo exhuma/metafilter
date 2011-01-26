@@ -21,16 +21,16 @@ if not hasattr(fuse, '__version__'):
 fuse.fuse_python_api = (0, 2)
 fuse.feature_assert('stateful_files', 'has_init')
 def path_items(relpath):
-   return relpath.split(sep)[1:]
+    return relpath.split(sep)[1:]
 
 def flag2mode(flags):
-   md = {os.O_RDONLY: 'r', os.O_WRONLY: 'w', os.O_RDWR: 'w+'}
-   m = md[flags & (os.O_RDONLY | os.O_WRONLY | os.O_RDWR)]
+    md = {os.O_RDONLY: 'r', os.O_WRONLY: 'w', os.O_RDWR: 'w+'}
+    m = md[flags & (os.O_RDONLY | os.O_WRONLY | os.O_RDWR)]
 
-   if flags | os.O_APPEND:
-      m = m.replace('w', 'a', 1)
+    if flags | os.O_APPEND:
+        m = m.replace('w', 'a', 1)
 
-   return m
+    return m
 
 class LoggingFuse(fuse.Fuse):
 
@@ -39,324 +39,324 @@ class LoggingFuse(fuse.Fuse):
         self.log = logging.getLogger(__name__)
 
     def getattr(self, path):
-       self.log.debug("Called unimplemented getattr on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented getattr on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def getdir(self, path):
-       self.log.debug("Called unimplemented getdir on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented getdir on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def mythread ( self ):
-       self.log.debug("Called unimplemented mythread with %r" % locals())
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented mythread with %r" % locals())
+        return -errno.ENOSYS
 
     def chmod ( self, path, mode ):
-       self.log.debug("Called unimplemented chmod on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented chmod on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def chown ( self, path, uid, gid ):
-       self.log.debug("Called unimplemented chown on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented chown on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def link ( self, targetPath, linkPath ):
-       self.log.debug("Called unimplemented link on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented link on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def mkdir ( self, path, mode ):
-       self.log.debug("Called unimplemented mkdir on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented mkdir on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def mknod ( self, path, mode, dev ):
-       self.log.debug("Called unimplemented mknod on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented mknod on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def readlink ( self, path ):
-       self.log.debug("Called unimplemented readlink on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented readlink on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def rename ( self, oldPath, newPath ):
-       self.log.debug("Called unimplemented rename on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented rename on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def rmdir ( self, path ):
-       self.log.debug("Called unimplemented rmdir on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented rmdir on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def statfs ( self ):
-       self.log.debug("Called unimplemented statfs")
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented statfs")
+        return -errno.ENOSYS
 
     def symlink ( self, targetPath, linkPath ):
-       self.log.debug("Called unimplemented symlink on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented symlink on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def unlink ( self, path ):
-       self.log.debug("Called unimplemented unlink on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented unlink on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
     def utime ( self, path, times ):
-       self.log.debug("Called unimplemented utime on %s with %r" % (path, locals()))
-       return -errno.ENOSYS
+        self.log.debug("Called unimplemented utime on %s with %r" % (path, locals()))
+        return -errno.ENOSYS
 
 class MyStat(fuse.Stat):
-   def __init__(self):
-      self.st_mode = stat.S_IFDIR | 0755
-      self.st_ino = 0
-      self.st_dev = 0
-      self.st_nlink = 2
-      self.st_uid = 0
-      self.st_gid = 0
-      self.st_size = 4096
-      self.st_atime = 0
-      self.st_mtime = 0
-      self.st_ctime = 0
+    def __init__(self):
+        self.st_mode = stat.S_IFDIR | 0755
+        self.st_ino = 0
+        self.st_dev = 0
+        self.st_nlink = 2
+        self.st_uid = 0
+        self.st_gid = 0
+        self.st_size = 4096
+        self.st_atime = 0
+        self.st_mtime = 0
+        self.st_ctime = 0
 
 class MetaFile(object):
 
-   def __init__(self, fs, path, flags, *mode):
-      self.log = logging.getLogger("%s.%s" % (__name__, "MetaFile"))
+    def __init__(self, fs, path, flags, *mode):
+        self.log = logging.getLogger("%s.%s" % (__name__, "MetaFile"))
 
-      path = map_to_fs(fs.sess, path)
+        path = map_to_fs(fs.sess, path)
 
-      try:
-         self.log.debug("Opening file at path %s in %s" % (path, os.getcwd()))
-         self.file = os.fdopen(os.open(path, flags, *mode),
-                               flag2mode(flags))
-         self.fd = self.file.fileno()
-         self.log.debug("Opened as %s" % self.file)
-      except Exception, exc:
-         self.log.exception(exc)
+        try:
+            self.log.debug("Opening file at path %s in %s" % (path, os.getcwd()))
+            self.file = os.fdopen(os.open(path, flags, *mode),
+                                         flag2mode(flags))
+            self.fd = self.file.fileno()
+            self.log.debug("Opened as %s" % self.file)
+        except Exception, exc:
+            self.log.exception(exc)
 
-   def read(self, length, offset, *args):
-      self.log.debug("Reading: %r" %locals() )
-      self.file.seek(offset)
-      return self.file.read(length)
+    def read(self, length, offset, *args):
+        self.log.debug("Reading: %r" %locals() )
+        self.file.seek(offset)
+        return self.file.read(length)
 
-   def write(self, buf, offset):
-      self.file.seek(offset)
-      self.file.write(buf)
-      return len(buf)
+    def write(self, buf, offset):
+        self.file.seek(offset)
+        self.file.write(buf)
+        return len(buf)
 
-   def release(self, *args):
-      self.log.debug("Releasing: %r" %locals() )
-      self.file.close()
+    def release(self, *args):
+        self.log.debug("Releasing: %r" %locals() )
+        self.file.close()
 
-   def _fflush(self):
-      if 'w' in self.file.mode or 'a' in self.file.mode:
-          self.file.flush()
+    def _fflush(self):
+        if 'w' in self.file.mode or 'a' in self.file.mode:
+            self.file.flush()
 
-   def fsync(self, isfsyncfile):
-      self._fflush()
-      if isfsyncfile and hasattr(os, 'fdatasync'):
-          os.fdatasync(self.fd)
-      else:
-          os.fsync(self.fd)
+    def fsync(self, isfsyncfile):
+        self._fflush()
+        if isfsyncfile and hasattr(os, 'fdatasync'):
+            os.fdatasync(self.fd)
+        else:
+            os.fsync(self.fd)
 
-   def flush(self):
-      self._fflush()
-      # cf. xmp_flush() in fusexmp_fh.c
-      os.close(os.dup(self.fd))
+    def flush(self):
+        self._fflush()
+        # cf. xmp_flush() in fusexmp_fh.c
+        os.close(os.dup(self.fd))
 
-   def fgetattr(self):
-      try:
-         return os.fstat(self.fd)
-      except Exception, exc:
-         self.log.exception(exc)
+    def fgetattr(self):
+        try:
+            return os.fstat(self.fd)
+        except Exception, exc:
+            self.log.exception(exc)
 
-   def ftruncate(self, len):
-      self.file.truncate(len)
+    def ftruncate(self, len):
+        self.file.truncate(len)
 
-   # def lock(self, cmd, owner, **kw):
-   #    # The code here is much rather just a demonstration of the locking
-   #    # API than something which actually was seen to be useful.
+    # def lock(self, cmd, owner, **kw):
+    #     # The code here is much rather just a demonstration of the locking
+    #     # API than something which actually was seen to be useful.
 
-   #    # Advisory file locking is pretty messy in Unix, and the Python
-   #    # interface to this doesn't make it better.
-   #    # We can't do fcntl(2)/F_GETLK from Python in a platfrom independent
-   #    # way. The following implementation *might* work under Linux. 
-   #    #
-   #    # if cmd == fcntl.F_GETLK:
-   #    #     import struct
-   #    # 
-   #    #     lockdata = struct.pack('hhQQi', kw['l_type'], os.SEEK_SET,
-   #    #                            kw['l_start'], kw['l_len'], kw['l_pid'])
-   #    #     ld2 = fcntl.fcntl(self.fd, fcntl.F_GETLK, lockdata)
-   #    #     flockfields = ('l_type', 'l_whence', 'l_start', 'l_len', 'l_pid')
-   #    #     uld2 = struct.unpack('hhQQi', ld2)
-   #    #     res = {}
-   #    #     for i in xrange(len(uld2)):
-   #    #          res[flockfields[i]] = uld2[i]
-   #    #  
-   #    #     return fuse.Flock(**res)
+    #     # Advisory file locking is pretty messy in Unix, and the Python
+    #     # interface to this doesn't make it better.
+    #     # We can't do fcntl(2)/F_GETLK from Python in a platfrom independent
+    #     # way. The following implementation *might* work under Linux. 
+    #     #
+    #     # if cmd == fcntl.F_GETLK:
+    #     #      import struct
+    #     # 
+    #     #      lockdata = struct.pack('hhQQi', kw['l_type'], os.SEEK_SET,
+    #     #                                     kw['l_start'], kw['l_len'], kw['l_pid'])
+    #     #      ld2 = fcntl.fcntl(self.fd, fcntl.F_GETLK, lockdata)
+    #     #      flockfields = ('l_type', 'l_whence', 'l_start', 'l_len', 'l_pid')
+    #     #      uld2 = struct.unpack('hhQQi', ld2)
+    #     #      res = {}
+    #     #      for i in xrange(len(uld2)):
+    #     #             res[flockfields[i]] = uld2[i]
+    #     #  
+    #     #      return fuse.Flock(**res)
 
-   #    # Convert fcntl-ish lock parameters to Python's weird
-   #    # lockf(3)/flock(2) medley locking API...
-   #    op = { fcntl.F_UNLCK : fcntl.LOCK_UN,
-   #           fcntl.F_RDLCK : fcntl.LOCK_SH,
-   #           fcntl.F_WRLCK : fcntl.LOCK_EX }[kw['l_type']]
-   #    if cmd == fcntl.F_GETLK:
-   #        return -EOPNOTSUPP
-   #    elif cmd == fcntl.F_SETLK:
-   #        if op != fcntl.LOCK_UN:
-   #            op |= fcntl.LOCK_NB
-   #    elif cmd == fcntl.F_SETLKW:
-   #        pass
-   #    else:
-   #        return -EINVAL
+    #     # Convert fcntl-ish lock parameters to Python's weird
+    #     # lockf(3)/flock(2) medley locking API...
+    #     op = { fcntl.F_UNLCK : fcntl.LOCK_UN,
+    #              fcntl.F_RDLCK : fcntl.LOCK_SH,
+    #              fcntl.F_WRLCK : fcntl.LOCK_EX }[kw['l_type']]
+    #     if cmd == fcntl.F_GETLK:
+    #          return -EOPNOTSUPP
+    #     elif cmd == fcntl.F_SETLK:
+    #          if op != fcntl.LOCK_UN:
+    #                op |= fcntl.LOCK_NB
+    #     elif cmd == fcntl.F_SETLKW:
+    #          pass
+    #     else:
+    #          return -EINVAL
 
-   #    fcntl.lockf(self.fd, op, kw['l_start'], kw['l_len'])
+    #     fcntl.lockf(self.fd, op, kw['l_start'], kw['l_len'])
 
 class MetaFilterFS(LoggingFuse):
 
-   def __init__(self, *args, **kwargs):
-      fuse.Fuse.__init__(self, *args, **kwargs)
-      self.log = logging.getLogger("metafilter")
-      self.setup_logging()
-      self.log.info("*** Fuse Initialised")
-      self.sess = Session()
-      self.root = '/'
-      self.dsn = "sqlite://"
+    def __init__(self, *args, **kwargs):
+        fuse.Fuse.__init__(self, *args, **kwargs)
+        self.log = logging.getLogger("metafilter")
+        self.setup_logging()
+        self.log.info("*** Fuse Initialised")
+        self.sess = Session()
+        self.root = '/'
+        self.dsn = "sqlite://"
 
-   def setup_logging(self):
-      stdout = logging.StreamHandler()
-      stdout.setLevel(logging.DEBUG)
-      file_out = logging.handlers.RotatingFileHandler("/tmp/fuse.log", maxBytes=100000)
-      formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-      file_out.setFormatter(formatter)
-      stdout.setFormatter(formatter)
-      self.log.addHandler(file_out)
-      self.log.addHandler(stdout)
-      self.log.setLevel(logging.DEBUG)
+    def setup_logging(self):
+        stdout = logging.StreamHandler()
+        stdout.setLevel(logging.DEBUG)
+        file_out = logging.handlers.RotatingFileHandler("/tmp/fuse.log", maxBytes=100000)
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        file_out.setFormatter(formatter)
+        stdout.setFormatter(formatter)
+        self.log.addHandler(file_out)
+        self.log.addHandler(stdout)
+        self.log.setLevel(logging.DEBUG)
 
-   def depth(self, relpath):
-      return len(path_items(relpath))
+    def depth(self, relpath):
+        return len(path_items(relpath))
 
-   def fsinit(self):
-      os.chdir(self.root)
+    def fsinit(self):
+        os.chdir(self.root)
 
-   def getattr(self, path):
-      if path.startswith('/.Trash'):
-         return -errno.ENOENT
+    def getattr(self, path):
+        if path.startswith('/.Trash'):
+            return -errno.ENOENT
 
-      fs_path = map_to_fs(self.sess, path)
+        fs_path = map_to_fs(self.sess, path)
 
-      self.log.debug( 'Mapped %r to %r' % (path, fs_path) )
+        self.log.debug( 'Mapped %r to %r' % (path, fs_path) )
 
-      try:
-         if fs_path:
-            self.log.debug("Node maps to filesystem => query system stat")
-            st = MyStat()
-            if not exists(fs_path):
-               return -errno.ENOENT
-            node = by_uri(self.sess, fs_path)
-            if node:
-               return os.lstat(fs_path)
-            return st
-         else:
-            st = MyStat()
-            return st
-      except Exception, ex:
-         self.log.exception(ex)
-      return -errno.ENOSYS
+        try:
+            if fs_path:
+                self.log.debug("Node maps to filesystem => query system stat")
+                st = MyStat()
+                if not exists(fs_path):
+                    return -errno.ENOENT
+                node = by_uri(self.sess, fs_path)
+                if node:
+                    return os.lstat(fs_path)
+                return st
+            else:
+                st = MyStat()
+                return st
+        except Exception, ex:
+            self.log.exception(ex)
+        return -errno.ENOSYS
 
-   def readdir(self, path, offset):
-      self.log.info("*** readdir %r with offset %r" % (path, offset))
+    def readdir(self, path, offset):
+        self.log.info("*** readdir %r with offset %r" % (path, offset))
 
-      # default (required) entries
-      entries = [ fuse.Direntry('.'), fuse.Direntry('..') ]
+        # default (required) entries
+        entries = [ fuse.Direntry('.'), fuse.Direntry('..') ]
 
-      # remove leading '/'
-      path = path[1:]
+        # remove leading '/'
+        path = path[1:]
 
-      # retrieve subfolders
-      for node in subdirs(self.sess, path):
-         entries.append(fuse.Direntry(node.basename.encode(
-            sys.getfilesystemencoding(), 'replace')))
-
-      # split into path elements
-      for node in from_incremental_query(self.sess, path):
-         if path.endswith('/__flat__'):
-            entries.append(fuse.Direntry(node.md5name.encode(
-               sys.getfilesystemencoding(), 'replace')))
-         else:
+        # retrieve subfolders
+        for node in subdirs(self.sess, path):
             entries.append(fuse.Direntry(node.basename.encode(
-               sys.getfilesystemencoding(), 'replace')))
+                sys.getfilesystemencoding(), 'replace')))
 
-      # generate the output
-      for r in entries:
-         if not r.name:
-            continue
-         self.log.debug("listing %s" % r.name)
-         yield r
+        # split into path elements
+        for node in from_incremental_query(self.sess, path):
+            if path.endswith('/__flat__'):
+                entries.append(fuse.Direntry(node.md5name.encode(
+                    sys.getfilesystemencoding(), 'replace')))
+            else:
+                entries.append(fuse.Direntry(node.basename.encode(
+                    sys.getfilesystemencoding(), 'replace')))
 
-   def rmdir(self, path):
-      self.log.debug("* rmdir %s" % (path))
-      leaf = path.split(sep)[-1]
-      q = self.sess.query(Query).filter(Query.query == leaf).first()
-      if not q:
-         self.log.error("Query path %s does not exist!", path)
-         return -errno.ENOENT
-      try:
-         self.sess.delete(q)
-         self.sess.commit()
-      except Exception, ex:
-         self.log.exception(ex)
-      return 0
+        # generate the output
+        for r in entries:
+            if not r.name:
+                continue
+            self.log.debug("listing %s" % r.name)
+            yield r
 
-   def mkdir(self, path, mode):
-      self.log.debug("* mkdir %s %s" % (path, mode))
-      leaf = path.split(sep)[-1]
-      #groups = TIME_PATTERN.match(leaf).groups()
-      #if groups == (None, None, None):
-      #   self.log.error("Path %s is not a valid query expression!", path)
-      #   return -errno.EINVAL
-      q = Query(leaf)
-      self.sess.add(q)
-      self.sess.commit()
-      return 0
+    def rmdir(self, path):
+        self.log.debug("* rmdir %s" % (path))
+        leaf = path.split(sep)[-1]
+        q = self.sess.query(Query).filter(Query.query == leaf).first()
+        if not q:
+            self.log.error("Query path %s does not exist!", path)
+            return -errno.ENOENT
+        try:
+            self.sess.delete(q)
+            self.sess.commit()
+        except Exception, ex:
+            self.log.exception(ex)
+        return 0
 
-   def main(self, *a, **kw):
+    def mkdir(self, path, mode):
+        self.log.debug("* mkdir %s %s" % (path, mode))
+        leaf = path.split(sep)[-1]
+        #groups = TIME_PATTERN.match(leaf).groups()
+        #if groups == (None, None, None):
+        #    self.log.error("Path %s is not a valid query expression!", path)
+        #    return -errno.EINVAL
+        q = Query(leaf)
+        self.sess.add(q)
+        self.sess.commit()
+        return 0
 
-      class WrappedMetaFile(MetaFile):
-         def __init__(self2, *args, **kwargs):
-            MetaFile.__init__(self2, self, *args, **kwargs)
+    def main(self, *a, **kw):
 
-      self.file_class = WrappedMetaFile
-      return fuse.Fuse.main(self, *a, **kw)
+        class WrappedMetaFile(MetaFile):
+            def __init__(self2, *args, **kwargs):
+                MetaFile.__init__(self2, self, *args, **kwargs)
+
+        self.file_class = WrappedMetaFile
+        return fuse.Fuse.main(self, *a, **kw)
 
 def main():
-   usage="""MetaFilterFS:
-      A filesystem which queries a DB to filter a tree based
-   on simple queries.
-   """ + fuse.Fuse.fusage
+    usage = """MetaFilterFS:
+        A filesystem which queries a DB to filter a tree based
+    on simple queries.
+    """ + fuse.Fuse.fusage
 
-   server = MetaFilterFS(
-         version="%prog " + fuse.__version__,
-         usage=usage,
-         dash_s_do='setsingle')
-   server.parser.add_option(
-         mountopt="root",
-         metavar="PATH",
-         default='/',
-         help="mount filtered filesystem from under PATH [default: %default]")
-   server.parser.add_option(
-         mountopt="dsn",
-         metavar="DSN",
-         default='sqlite://',
-         help="The database connection DSN. See sqlalchemy docs for it's format [default: %default]")
-   server.parse(values=server, errex=1)
+    server = MetaFilterFS(
+            version="%prog " + fuse.__version__,
+            usage=usage,
+            dash_s_do='setsingle')
+    server.parser.add_option(
+            mountopt="root",
+            metavar="PATH",
+            default='/',
+            help="mount filtered filesystem from under PATH [default: %default]")
+    server.parser.add_option(
+            mountopt="dsn",
+            metavar="DSN",
+            default='sqlite://',
+            help="The database connection DSN. See sqlalchemy docs for it's format [default: %default]")
+    server.parse(values=server, errex=1)
 
-   metafilter.model.set_dsn(server.dsn)
+    metafilter.model.set_dsn(server.dsn)
 
-   try:
-      if server.fuse_args.mount_expected():
-         os.chdir(server.root)
-   except OSError:
-      print >> sys.stderr, "can't enter root (%r) of underlying filesystem" % server.root
-      sys.exit(1)
+    try:
+        if server.fuse_args.mount_expected():
+            os.chdir(server.root)
+    except OSError:
+        print >> sys.stderr, "can't enter root (%r) of underlying filesystem" % server.root
+        sys.exit(1)
 
-   server.main()
+    server.main()
 
 if __name__ == '__main__':
-   main()
+    main()
 
