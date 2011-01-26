@@ -364,7 +364,7 @@ def subdirs(sess, query):
    LOG.debug('subfolders in %s' % query)
 
    if not query or query == 'root' or query == '/':
-      return None
+      return []
       # handled by from incremental_query
    else:
       if query.startswith('root'):
@@ -379,16 +379,16 @@ def subdirs(sess, query):
 
    # handle flattened queries
    if query_nodes and query_nodes[-1] == "__flat__":
-      return None
+      return []
 
    stmt = sess.query(Node)
 
    if 'named_queries' in query_types and not query_nodes:
       # handled by incremental_query
-      return None
+      return []
    elif query_types[0] == 'named_queries':
       # handled by incremental_query
-      return None
+      return []
 
    num_params = expected_params(query_types)
    if not query_nodes or len(query_nodes) < num_params:

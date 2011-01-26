@@ -6,7 +6,7 @@ import errno
 from time import mktime
 import metafilter.model
 from metafilter.model import Node, Query, Session
-from metafilter.model.nodes import by_uri, TIME_PATTERN, from_incremental_query, map_to_fs
+from metafilter.model.nodes import by_uri, TIME_PATTERN, from_incremental_query, map_to_fs, subdirs
 import metafilter.model.queries as queries
 from os.path import sep, join, exists
 import os
@@ -267,6 +267,11 @@ class MetaFilterFS(LoggingFuse):
 
       # remove leading '/'
       path = path[1:]
+
+      # retrieve subfolders
+      for node in subdirs(self.sess, path):
+         entries.append(fuse.Direntry(node.basename.encode(
+            sys.getfilesystemencoding(), 'replace')))
 
       # split into path elements
       for node in from_incremental_query(self.sess, path):
