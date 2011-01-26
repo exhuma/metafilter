@@ -25,7 +25,11 @@ def after_request(response):
 @app.route('/query')
 @app.route('/query/<path:query>')
 def query(query="root"):
-   result = nodes.from_incremental_query(g.sess, query)
+   result = nodes.subdirs(g.sess, query)
+   if not result:
+       result = []
+   result += nodes.from_incremental_query(g.sess, query).all()
+
    try:
       result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
    except Exception, exc:

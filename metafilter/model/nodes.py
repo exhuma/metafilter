@@ -13,10 +13,9 @@ from sqlalchemy import (
         not_)
 from sqlalchemy.orm import mapper, relation
 from sqlalchemy.sql import distinct
-from sqlalchemy.exc import IntegrityError, DataError
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from metafilter.model.queries import Query, query_table
-from os.path import sep, basename, exists
+from os.path import basename, exists
 from datetime import datetime
 import re
 from sys import getfilesystemencoding
@@ -84,37 +83,6 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
    LOG.info("Rescanning files that changed since %s" % oldest_refresh)
 
    for root, dirs, files in os.walk(root):
-
-      # store folder nodes
-      for node in root.split(sep):
-         try:
-            detached_file = Node(root.decode(getfilesystemencoding()))
-         except UnicodeDecodeError, exc:
-            LOG.error("%r: %s" % (root, exc))
-            continue
-
-         detached_file.mimetype = "other/directory"
-
-         try:
-            LOG.debug("Merging %s" % detached_file)
-            attached_file = sess.merge(detached_file)
-            sess.add(attached_file)
-            LOG.debug("Added %s" % attached_file)
-            sess.commit()
-         except IntegrityError, exc:
-            if exc.message.strip() == '(IntegrityError) duplicate key value violates unique constraint "node_path"':
-               LOG.warning(exc.message)
-               LOG.warning(exc.params)
-               sess.rollback()
-            else:
-               raise
-         except DataError, exc:
-            if "(DataError) invalid byte sequence for encoding" in exc.message:
-               LOG.warning(exc.message)
-               LOG.warning(exc.params)
-               sess.rollback()
-            else:
-               raise
 
       if 'Thumbs.db' in files:
          files.remove('Thumbs.db')
@@ -222,11 +190,15 @@ def remove_orphans(sess, root):
 
    remove_empty_dirs(sess, root)
 
-def calc_md5(sess, root):
+def calc_md5(sess, root, since=None):
    root_ltree = uri_to_ltree(root)
    qry = sess.query(Node)
    qry = qry.filter( Node.path.op("<@")(root_ltree) )
    qry = qry.filter( Node.mimetype != 'other/directory' )
+
+   if since:
+      qry = qry.filter(Node.updated >= since)
+
    count = 0
    for node in qry:
       if not exists(node.uri):
@@ -387,6 +359,76 @@ def expected_params(query_types):
          num += 1
 
    return num
+
+def subdirs(sess, query):
+   LOG.debug('subfolders in %s' % query)
+
+   if not query or query == 'root' or query == '/':
+      return None
+      # handled by from incremental_query
+   else:
+      if query.startswith('root'):
+         query = query[5:]
+      query_nodes = query.split('/')
+
+   LOG.debug('Query nodes: %r' % query_nodes)
+
+   # pop the query type off the beginning
+   query_types = query_nodes.pop(0).lower()
+   query_types = [x.strip() for x in query_types.split(',')]
+
+   # handle flattened queries
+   if query_nodes and query_nodes[-1] == "__flat__":
+      return None
+
+   stmt = sess.query(Node)
+
+   if 'named_queries' in query_types and not query_nodes:
+      # handled by incremental_query
+      return None
+   elif query_types[0] == 'named_queries':
+      # handled by incremental_query
+      return None
+
+   num_params = expected_params(query_types)
+   if not query_nodes or len(query_nodes) < num_params:
+      # todo: query not complete: offer some virtual folders
+      output = []
+      return output
+
+   parent_uri = '/'.join(query_nodes[num_params:])
+
+   parent_path = uri_to_ltree(parent_uri)
+   depth = uri_depth(parent_uri)
+
+   stmt = sess.query(
+         distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
+         )
+
+   stmt = stmt.filter( Node.path.op("<@")(parent_path) )
+   stmt = stmt.filter( func.nlevel(Node.path) > uri_depth(parent_uri)+1)
+
+   if len(query_types) == 1 and query_types[0] == 'all':
+      return [DummyNode(x[0].rsplit('.')[-1]) for x in stmt]
+
+   # apply all filters in sequence
+   for query_type in query_types:
+      if query_type == 'date':
+         stmt = dated(sess, stmt, parent_uri, query_nodes)
+
+      if query_type == 'rating':
+         stmt = rated(stmt, parent_uri, query_nodes)
+
+      if query_type == 'md5':
+         stmt = has_md5(stmt, parent_uri, query_nodes)
+
+      if query_type == 'in_path':
+         stmt = in_path(stmt, query_nodes)
+
+      if query_type == 'tag':
+         stmt = tagged(sess, stmt, parent_uri, query_nodes)
+
+   return [DummyNode(x[0].rsplit('.', 1)[-1]) for x in stmt]
 
 def from_incremental_query(sess, query):
    LOG.debug('parsing incremental query %r' % query)
@@ -586,6 +628,7 @@ class DummyNode(object):
 
    def __init__(self, label):
       self.label = label
+      self.mimetype = 'other/directory'
 
    def __repr__(self):
       return "<DummyNode %s %r>" % (

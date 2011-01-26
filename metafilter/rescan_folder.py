@@ -66,7 +66,7 @@ def main():
       remove_orphans(sess, args[0])
 
    if options.md5:
-      calc_md5(sess, args[0])
+      calc_md5(sess, args[0], options.since)
 
    sess.close()
    print "Rescan finished"
