@@ -1,11 +1,23 @@
-from sqlalchemy import Table, Column, Integer, Unicode, ForeignKey, String, DateTime, Boolean, UniqueConstraint, Sequence, select, func, update, not_
-from sqlalchemy.orm import mapper, aliased, relation
-from sqlalchemy.sql import func, distinct
+from sqlalchemy import (
+        Table,
+        Column,
+        Integer,
+        Unicode,
+        ForeignKey,
+        String,
+        DateTime,
+        Boolean,
+        UniqueConstraint,
+        select,
+        func,
+        not_)
+from sqlalchemy.orm import mapper, relation
+from sqlalchemy.sql import distinct
 from sqlalchemy.exc import IntegrityError, DataError
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from metafilter.model.queries import Query, query_table
-from os.path import sep, isdir, basename, exists
-from datetime import datetime, timedelta
+from os.path import sep, basename, exists
+from datetime import datetime
 import re
 from sys import getfilesystemencoding
 
@@ -61,7 +73,7 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
    import os
    import mimetypes
    mimetypes.init()
-   from os.path import isfile, join, abspath, sep
+   from os.path import isfile, join, abspath
 
    root_ltree = uri_to_ltree(root)
    if not oldest_refresh:
@@ -78,7 +90,7 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
          try:
             detached_file = Node(root.decode(getfilesystemencoding()))
          except UnicodeDecodeError, exc:
-            LOG.error("%r: %s" % (path, exc))
+            LOG.error("%r: %s" % (root, exc))
             continue
 
          detached_file.mimetype = "other/directory"
