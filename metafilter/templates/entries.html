@@ -24,6 +24,7 @@
       <th>Created</th>
       <th>Changed</th>
       <th>MD5 Hash</th>
+      <th>ops</th>
    </tr>
    {% for row in entries %}
       {% if row.is_dir() %}
@@ -31,6 +32,7 @@
             <td>&nbsp;</td>
             <td><a href="{{url_for('query', query='%s/%s' % (query, row.basename))}}">{{ row.basename }}</a></td>
             <td>{{ row.mimetype }}</td>
+            <td>&nbsp;</td>
             <td>&nbsp;</td>
             <td>&nbsp;</td>
             <td>&nbsp;</td>
@@ -69,6 +71,7 @@
             <td>{{ row.created }}</td>
             <td>{{ row.updated }}</td>
             <td>{{ row.md5 }}</td>
+            <td><a href='{{ url_for('delete_from_disk', path = row.path) }}' onclick="return confirm('Are you sure?');">Delete from disk</a></td>
          </tr>
    {% endif %}
    {% else %}

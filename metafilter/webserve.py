@@ -37,6 +37,11 @@ def query(query="root"):
 
     return render_template("entries.html", entries=result, query=query)
 
+@app.route('/delete_from_disk/<path>')
+def delete_from_disk(path):
+    nodes.delete_from_disk(g.sess, path)
+    return redirect(request.referrer)
+
 @app.route('/thumbnail/<path>')
 def thumbnail(path):
     import Image

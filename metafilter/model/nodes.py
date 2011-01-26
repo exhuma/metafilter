@@ -9,6 +9,7 @@ from sqlalchemy import (
           Boolean,
           UniqueConstraint,
           select,
+          delete,
           func,
           not_)
 from sqlalchemy.orm import mapper, relation
@@ -557,6 +558,23 @@ def map_to_fsold(query):
     return out
 
     return None
+
+def delete_from_disk(sess, path):
+    """
+    Deletes an entry from disk and from the DB
+    """
+    from os import unlink
+    node = sess.query(Node).filter(Node.path == path).first()
+    if not node:
+        return
+
+    try:
+        unlink(node.uri)
+    except Exception, exc:
+        LOG.exception(exc)
+
+    sess.delete(node)
+    sess.commit()
 
 @memoized
 def map_to_fs(sess, query):
