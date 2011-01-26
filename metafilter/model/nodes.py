@@ -323,7 +323,7 @@ def duplicates(sess):
 
     acks = select([acknowledged_duplicates_table.c.md5])
 
-    qry = sess.query(Node.md5, func.count(Node.md5))
+    qry = sess.query(Node.md5, func.count(Node.md5), func.max(Node.uri))
     qry = qry.filter(not_(Node.md5.in_(acks)))
     qry = qry.group_by(Node.md5)
     qry = qry.having(func.count(Node.md5) > 1)

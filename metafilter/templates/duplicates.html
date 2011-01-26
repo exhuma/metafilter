@@ -3,13 +3,13 @@
 
 <table id="entryList">
    <tr>
-      <th>MD5 sum</th>
+      <th>Name of one instance</th>
       <th>Count</th>
    </tr>
-   {% for md5, count in duplicates %}
+   {% for md5, count, uri in duplicates %}
       <tr>
          <td>
-            <a href="{{url_for('query', query='md5/%s' % (md5))}}">{{md5}}</a>
+            <a href="{{url_for('query', query='md5/%s' % (md5))}}">{{ uri.split('/')[-1] }}</a>
          </td>
          <td> {{ count }} </td>
          <td><a href="{{url_for('acknowledge_duplicate', md5=md5)}}" title="Don't include this in the list in the future">Ignore</a>
