@@ -1,6 +1,7 @@
 from flask import Flask, g, render_template, request, redirect, make_response, url_for
 from metafilter.model import Node, Query, Session, set_dsn
 from metafilter.model import queries, nodes
+from optparse import OptionParser
 import logging
 
 LOG = logging.getLogger(__name__)
@@ -140,7 +141,27 @@ def view(path, index=0):
             )
 
 if __name__ == "__main__":
+
+    parser = OptionParser()
+    parser.add_option("-d", "--dsn", dest="dsn",
+                            help="Database DSN (see sqlalchemy docs for details)",
+                            metavar="DSN")
+    parser.add_option("-p", "--port", dest="port",
+                            help="Port on which the webserver will run",
+                            default = 8080)
+    parser.add_option("-i", "--iface", dest = "interface",
+                            help = "Network interface address to which the "
+                            "process will be bound",
+                            default = "127.0.0.1")
+    (options, args) = parser.parse_args()
+
     app.debug = True
     logging.basicConfig(level=logging.DEBUG)
-    set_dsn("postgresql://filemeta:filemeta@localhost/filemeta_old")
-    app.run(host="0.0.0.0", port=8181)
+
+    if options.dsn:
+       dsn = options.dsn
+    else:
+       dsn = "postgresql://filemeta:filemeta@localhost/filemeta_old"
+
+    set_dsn(dsn)
+    app.run(host=options.interface, port=int(options.port))
