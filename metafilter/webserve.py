@@ -25,7 +25,7 @@ def after_request(response):
 
 @app.route('/query')
 @app.route('/query/<path:query>')
-def query(query="root"):
+def query(query="all/"):
     result = nodes.subdirs(g.sess, query)
     if not result:
         result = []
@@ -36,6 +36,8 @@ def query(query="root"):
     except Exception, exc:
         LOG.info(exc)
 
+    if query.endswith('/'):
+        query = query[0:-1]
     return render_template("entries.html", entries=result, query=query)
 
 @app.route('/delete_from_disk/<path>')
