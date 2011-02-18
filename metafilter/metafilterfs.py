@@ -276,7 +276,7 @@ class MetaFilterFS(LoggingFuse):
         # split into path elements
         for node in from_incremental_query(self.sess, path):
             if path.endswith('/__flat__'):
-                entries.append(fuse.Direntry(node.md5name.encode(
+                entries.append(fuse.Direntry(node.flatname.encode(
                     sys.getfilesystemencoding(), 'replace')))
             else:
                 entries.append(fuse.Direntry(node.basename.encode(

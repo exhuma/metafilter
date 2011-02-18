@@ -57,7 +57,6 @@ TIME_PATTERN = re.compile(r'(\d{4}-\d{2}-\d{2})?(t)?(\d{4}-\d{2}-\d{2})?')
 LOG = logging.getLogger(__name__)
 PCONST = pdc.Constants()
 CALENDAR = pdt.Calendar(PCONST)
-FLATTEN_MAP = {}
 
 def by_uri(session, uri):
     qry = session.query(Node)
@@ -624,7 +623,7 @@ def map_to_fs(sess, query):
 
         # in normal cases, we should only have one entry after __flat__. Which
         # is it's whole purpose!
-        md5name = map_nodes[-1]
+        flatname = map_nodes[-1]
 
         LOG.debug('flattened mapping of %r ' % map_nodes)
         mapping_base = '/'.join(mapping_base)
@@ -633,17 +632,8 @@ def map_to_fs(sess, query):
         flatten_map[mapping_base] = {}
         stmt = from_incremental_query(sess, mapping_base)
         for node in stmt:
-            flatten_map[mapping_base][node.md5name] = node.uri
-        return flatten_map[mapping_base].get(md5name, None)
-
-        #if mapping_base not in FLATTEN_MAP:
-        #    LOG.debug('populating map for %r' % mapping_base)
-        #    FLATTEN_MAP[mapping_base] = ({}, datetime.now())
-        #    stmt = from_incremental_query(sess, mapping_base)
-        #    for node in stmt:
-        #        FLATTEN_MAP[mapping_base][0][node.md5name] = node.uri
-
-        #return FLATTEN_MAP[mapping_base][0].get(md5name, None)
+            flatten_map[mapping_base][node.flatname] = node.uri
+        return flatten_map[mapping_base].get(flatname, None)
 
 class DummyNode(object):
 
@@ -661,6 +651,10 @@ class DummyNode(object):
 
     @property
     def basename(self):
+        return self.label
+
+    @property
+    def flatname(self):
         return self.label
 
 class Node(DummyNode):
@@ -697,6 +691,15 @@ class Node(DummyNode):
 
         out = "%s.%s" % (md5(self.uri).hexdigest(), ext)
         return out
+
+    @property
+    def flatname(self):
+        parent_nodes = self.uri.split("/")
+        if parent_nodes:
+            parent_folder_hints = [x[0] for x in parent_nodes if x]
+        else:
+            parent_folder_hints = []
+        return "_".join(parent_folder_hints) + "_" + basename(self.uri)
 
 class Tag(object):
 
