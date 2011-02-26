@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<a href="{{url_for('view', path=node.path, index=index-1)}}">Previous</a>
+<a href="{{url_for('view', path=node.path, index=index+1)}}">Next</a>
+<br />
+
+<div>
+   <a class="rating_button {{ node.rating==-5 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', -5); return false;">-5</a>&nbsp;
+   <a class="rating_button {{ node.rating==-4 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', -4); return false;">-4</a>&nbsp;
+   <a class="rating_button {{ node.rating==-3 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', -3); return false;">-3</a>&nbsp;
+   <a class="rating_button {{ node.rating==-2 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', -2); return false;">-2</a>&nbsp;
+   <a class="rating_button {{ node.rating==-1 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', -1); return false;">-1</a>&nbsp;
+   <a class="rating_button {{ node.rating==0 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', 0); return false;">0</a>&nbsp;
+   <a class="rating_button {{ node.rating==1 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', 1); return false;">1</a>&nbsp;
+   <a class="rating_button {{ node.rating==2 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', 2); return false;">2</a>&nbsp;
+   <a class="rating_button {{ node.rating==3 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', 3); return false;">3</a>&nbsp;
+   <a class="rating_button {{ node.rating==4 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', 4); return false;">4</a>&nbsp;
+   <a class="rating_button {{ node.rating==5 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', 5); return false;">5</a>
+</div>
+<center><img src="{{url_for('download', path=node.path)}}" /></center>
+
+<br />
+<a href="{{url_for('view', path=node.path, index=index-1)}}">Previous</a>
+<a href="{{url_for('view', path=node.path, index=index+1)}}">Next</a>
+
+{% endblock %}

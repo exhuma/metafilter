@@ -41,13 +41,15 @@
       {% else %}
          <tr>
             <td>
-               <a href="{{url_for('download', path=row.path)}}">
-                  {% if row.mimetype and row.mimetype.startswith('image/') %}
+               {% if row.mimetype and row.mimetype.startswith('image/') %}
+                  <a href="{{url_for('view', path=row.path, index=loop.index0)}}">
                   <img src="{{url_for('thumbnail', path=row.path)}}" />
-                  {% else %}
+                  </a>
+               {% else %}
+                  <a href="{{url_for('download', path=row.path)}}">
                   <img title="Get" src="{{url_for('static', filename='Crystal_Clear_action_filenew.png')}}" width="64" height="64" />
-                  {% endif %}
-               </a>
+                  </a>
+               {% endif %}
             </td>
             <td>
                <a class="more-info" title="{{row.uri}}">{{ row.basename }}</a>

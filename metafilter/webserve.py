@@ -28,7 +28,7 @@ def query(query="root"):
     result = nodes.subdirs(g.sess, query)
     if not result:
         result = []
-    result += nodes.from_incremental_query(g.sess, query).all()
+    result += nodes.from_incremental_query(g.sess, query).order_by(Node.path).all()
 
     try:
         result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
@@ -131,6 +131,19 @@ def duplicates():
 def acknowledge_duplicate(md5):
     nodes.acknowledge_duplicate(g.sess, md5)
     return redirect(url_for('duplicates'))
+
+@app.route("/view/<path:path>/<int:index>")
+def view(path, index=0):
+    parent_path = path.rsplit(".", 1)[0]
+    node = g.sess.query(Node)
+    node = node.filter(Node.path.op("<@")(parent_path))
+    node = node.limit(1).offset(index)
+    node = node.first()
+
+    return render_template("view.html",
+            node = node,
+            index = index,
+            )
 
 if __name__ == "__main__":
     app.debug = True
