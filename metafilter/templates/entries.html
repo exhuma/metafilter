@@ -26,8 +26,10 @@
       <th>MD5 Hash</th>
       <th>ops</th>
    </tr>
+   {% set diroffset = 0 %}
    {% for row in entries %}
       {% if row.is_dir() %}
+         {% set diroffset = diroffset + 1 %}
          <tr>
             <td>&nbsp;</td>
             <td><a href="{{url_for('query', query='%s/%s' % (query, row.basename))}}">{{ row.basename }}</a></td>
@@ -42,7 +44,7 @@
          <tr>
             <td>
                {% if row.mimetype and row.mimetype.startswith('image/') %}
-                  <a href="{{url_for('view', path=row.path, index=loop.index0)}}">
+                  <a href="{{url_for('view', path=row.path, index=loop.index0-diroffset)}}">
                   <img src="{{url_for('thumbnail', path=row.path)}}" />
                   </a>
                {% else %}

@@ -430,6 +430,17 @@ def subdirs(sess, query):
 
     return [DummyNode(x[0].rsplit('.', 1)[-1]) for x in stmt]
 
+def one_image(sess, path, offset):
+    parent_path = path.rsplit(".", 1)[0]
+    path_depth = len(path.split('.'))
+    node = sess.query(Node)
+    node = node.filter(Node.path.op("<@")(parent_path))
+    node = node.filter( func.nlevel(Node.path) == path_depth)
+    node = node.order_by(Node.path)
+    node = node.limit(1).offset(offset)
+    node = node.first()
+    return node
+
 def from_incremental_query(sess, query):
     LOG.debug('parsing incremental query %r' % query)
 

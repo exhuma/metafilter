@@ -134,14 +134,8 @@ def acknowledge_duplicate(md5):
 
 @app.route("/view/<path:path>/<int:index>")
 def view(path, index=0):
-    parent_path = path.rsplit(".", 1)[0]
-    node = g.sess.query(Node)
-    node = node.filter(Node.path.op("<@")(parent_path))
-    node = node.limit(1).offset(index)
-    node = node.first()
-
     return render_template("view.html",
-            node = node,
+            node = nodes.one_image(g.sess, path, index),
             index = index,
             )
 
