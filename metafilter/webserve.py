@@ -155,6 +155,11 @@ if __name__ == "__main__":
                             help = "Network interface address to which the "
                             "process will be bound",
                             default = "127.0.0.1")
+    parser.add_option("-r", "--root", dest = "root",
+                            help = "All queries will be prefixed with ROOT. "
+                            "Don't think about is as 'chroot' it's not a "
+                            "security option. It's a convenience!",
+                            default = "")
     (options, args) = parser.parse_args()
 
     app.debug = True
@@ -164,6 +169,9 @@ if __name__ == "__main__":
        dsn = options.dsn
     else:
        dsn = "postgresql://filemeta:filemeta@localhost/filemeta_old"
+
+    if options.root:
+        nodes.set_root(options.root)
 
     set_dsn(dsn)
     app.run(host=options.interface, port=int(options.port))

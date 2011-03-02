@@ -9,14 +9,13 @@ from sqlalchemy import (
           Boolean,
           UniqueConstraint,
           select,
-          delete,
           func,
           not_)
 from sqlalchemy.orm import mapper, relation
 from sqlalchemy.sql import distinct
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from metafilter.model.queries import Query, query_table
-from os.path import basename, exists
+from os.path import basename, exists, isdir
 from datetime import datetime
 import re
 from sys import getfilesystemencoding
@@ -57,6 +56,7 @@ TIME_PATTERN = re.compile(r'(\d{4}-\d{2}-\d{2})?(t)?(\d{4}-\d{2}-\d{2})?')
 LOG = logging.getLogger(__name__)
 PCONST = pdc.Constants()
 CALENDAR = pdt.Calendar(PCONST)
+ROOT = None
 
 def by_uri(session, uri):
     qry = session.query(Node)
@@ -67,6 +67,19 @@ def by_path(session, path):
     qry = session.query(Node)
     qry = qry.filter( Node.path == path )
     return qry.first()
+
+def set_root(root):
+    """
+    Set a new root folder. If this is set, all queries will be prefixed with
+    this path.
+    """
+    global ROOT
+    if not exists(root):
+        raise OSError("%s: File not found" % root)
+
+    if not isdir(root):
+        raise OSError("%s is not a valid folder!" % root)
+    ROOT = root
 
 def update_nodes_from_path(sess, root, oldest_refresh=None):
     import os
@@ -250,23 +263,13 @@ def has_md5(stmt, parent_uri, nodes):
     stmt = stmt.filter(Node.md5 == md5)
     return stmt
 
-def all(sess, nodes, flatten=False):
-
-    parent_uri = '/'.join(nodes)
-
-    parent_path = uri_to_ltree(parent_uri)
-    depth = uri_depth(parent_uri)
-
-    stmt = sess.query(
-            distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-            )
-
-    stmt = stmt.filter( Node.path.op("<@")(parent_path) )
-    stmt = stmt.subquery()
-    qry = sess.query( Node )
-    qry = qry.filter( Node.path.in_(stmt) )
-
-    return qry
+def all(sess, stmt, parent_uri, nodes):
+    """
+    Simply return an unfiltered result. This may seem like a superfluous
+    method, but it provides consistency. All filters are handled identically.
+    Even this no-op filter.
+    """
+    return stmt
 
 def dated(sess, stmt, parent_uri, nodes):
 
@@ -358,6 +361,9 @@ def expected_params(query_types):
         if type == 'tag':
             num += 1
 
+        if type == 'all':
+            num += 0
+
     return num
 
 def subdirs(sess, query):
@@ -397,6 +403,8 @@ def subdirs(sess, query):
         return output
 
     parent_uri = '/'.join(query_nodes[num_params:])
+    if ROOT:
+        parent_uri = ROOT + '/' + parent_uri
 
     parent_path = uri_to_ltree(parent_uri)
     depth = uri_depth(parent_uri)
@@ -474,9 +482,6 @@ def from_incremental_query(sess, query):
         flatten = False
 
     # Construct the different queries
-    if len(query_types) == 1 and query_types[0] == 'all':
-        return all(sess, query_nodes, flatten)
-
     if 'named_queries' in query_types and not query_nodes:
         nq_qry = sess.query(Query)
         nq_qry = nq_qry.filter( Query.label != None )
@@ -494,8 +499,9 @@ def from_incremental_query(sess, query):
         query_nodes = prepend_nodes + query_nodes
 
     num_params = expected_params(query_types)
-    if not query_nodes or len(query_nodes) < num_params:
-        # no details known yet. Find appropriate queries
+    if len(query_nodes) < num_params:
+        # no details known yet. Find queries that begin with the current known
+        # string
         output = []
         stmt = sess.query(Query.query)
         LOG.debug('Listing nodes starting with %r' % query)
@@ -508,7 +514,12 @@ def from_incremental_query(sess, query):
             output.append(DummyNode(sub_nodes[len(query_nodes)+1]))
         return output
 
+    # we now know the parameters for the query, so we can determine the parent
+    # URI (everything left from the query)
     parent_uri = '/'.join(query_nodes[num_params:])
+
+    if ROOT:
+        parent_uri = ROOT + '/' + parent_uri
 
     parent_path = uri_to_ltree(parent_uri)
     depth = uri_depth(parent_uri)
@@ -538,6 +549,9 @@ def from_incremental_query(sess, query):
 
         if query_type == 'tag':
             stmt = tagged(sess, stmt, parent_uri, query_nodes)
+
+        if query_type == 'all':
+            stmt = all(sess, stmt, parent_uri, query_nodes)
 
     if not flatten:
         stmt = stmt.subquery()

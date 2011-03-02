@@ -3,14 +3,17 @@
 import fuse
 import stat
 import errno
+from time import mktime
 import metafilter.model
-from metafilter.model import Query, Session
-from metafilter.model.nodes import by_uri, from_incremental_query, map_to_fs, subdirs
-from os.path import sep, exists
+from metafilter.model import Node, Query, Session
+from metafilter.model.nodes import by_uri, from_incremental_query, map_to_fs, subdirs, set_root
+import metafilter.model.queries as queries
+from os.path import sep, join, exists
 import os
 import logging
-from logging import handlers
+import logging.handlers
 import sys
+from datetime import datetime, timedelta
 
 if not hasattr(fuse, '__version__'):
     raise RuntimeError, \
@@ -217,7 +220,7 @@ class MetaFilterFS(LoggingFuse):
     def setup_logging(self):
         stdout = logging.StreamHandler()
         stdout.setLevel(logging.DEBUG)
-        file_out = handlers.RotatingFileHandler("/tmp/fuse.log", maxBytes=100000)
+        file_out = logging.handlers.RotatingFileHandler("/tmp/fuse.log", maxBytes=100000)
         formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         file_out.setFormatter(formatter)
         stdout.setFormatter(formatter)
@@ -348,6 +351,7 @@ def main():
     try:
         if server.fuse_args.mount_expected():
             os.chdir(server.root)
+        set_root(server.root)
     except OSError:
         print >> sys.stderr, "can't enter root (%r) of underlying filesystem" % server.root
         sys.exit(1)
@@ -355,7 +359,5 @@ def main():
     server.main()
 
 if __name__ == '__main__':
-    import cProfile
-    cProfile.run('main()', '/tmp/p.stats')
-    #main()
+    main()
 
