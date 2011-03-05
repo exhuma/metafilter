@@ -132,10 +132,11 @@ def acknowledge_duplicate(md5):
     nodes.acknowledge_duplicate(g.sess, md5)
     return redirect(url_for('duplicates'))
 
-@app.route("/view/<path:path>/<int:index>")
-def view(path, index=0):
+@app.route("/view/<path:query>/<int:index>")
+def view(query, index=0):
     return render_template("view.html",
-            node = nodes.one_image(g.sess, path, index),
+            node = nodes.one_image(g.sess, query, index),
+            query = query,
             index = index,
             )
 

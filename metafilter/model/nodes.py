@@ -294,10 +294,10 @@ def dated(sess, stmt, parent_uri, nodes):
             start_date = datetime.strptime(groups[0], "%Y-%m-%d")
             end_date = datetime.strptime(groups[2], "%Y-%m-%d")
             stmt = stmt.filter(Node.created.between(start_date, end_date))
-
-    timetuple = CALENDAR.parse(date_string)
-    start_date = datetime(*timetuple[0][0:6])
-    stmt = stmt.filter(Node.created > start_date)
+    else:
+        timetuple = CALENDAR.parse(date_string)
+        start_date = datetime(*timetuple[0][0:6])
+        stmt = stmt.filter(Node.created > start_date)
     return stmt
 
 def tagged(sess, stmt, parent_uri, nodes):
@@ -430,15 +430,11 @@ def subdirs(sess, query):
 
     return [DummyNode(x[0].rsplit('.', 1)[-1]) for x in stmt]
 
-def one_image(sess, path, offset):
-    parent_path = path.rsplit(".", 1)[0]
-    path_depth = len(path.split('.'))
-    node = sess.query(Node)
-    node = node.filter(Node.path.op("<@")(parent_path))
-    node = node.filter( func.nlevel(Node.path) == path_depth)
-    node = node.order_by(Node.path)
-    node = node.limit(1).offset(offset)
-    node = node.first()
+def one_image(sess, query, offset):
+    stmt = from_incremental_query(sess, query)
+    stmt = stmt.filter(Node.mimetype != 'other/directory')
+    stmt = stmt.limit(1).offset(offset)
+    node = stmt.first()
     return node
 
 def from_incremental_query(sess, query):
