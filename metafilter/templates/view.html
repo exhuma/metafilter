@@ -1,8 +1,8 @@
 {% extends "layout.html" %}
 {% block body %}
 
-<a href="{{url_for('view', query=query, index=index-1)}}">Previous</a>
-<a href="{{url_for('view', query=query, index=index+1)}}">Next</a>
+<a href="{{url_for('view', path=node.path, index=index-1)}}">Previous</a>
+<a href="{{url_for('view', path=node.path, index=index+1)}}">Next</a>
 <br />
 
 <div>
@@ -21,7 +21,7 @@
 <center><img src="{{url_for('download', path=node.path)}}" /></center>
 
 <br />
-<a href="{{url_for('view', query=query, index=index-1)}}">Previous</a>
-<a href="{{url_for('view', query=query, index=index+1)}}">Next</a>
+<a href="{{url_for('view', path=node.path, index=index-1)}}">Previous</a>
+<a href="{{url_for('view', path=node.path, index=index+1)}}">Next</a>
 
 {% endblock %}

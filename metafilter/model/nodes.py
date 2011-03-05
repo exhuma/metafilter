@@ -9,7 +9,7 @@ from sqlalchemy import (
           Boolean,
           UniqueConstraint,
           select,
-          delete,
+          desc,
           func,
           not_)
 from sqlalchemy.orm import mapper, relation
@@ -642,6 +642,14 @@ def map_to_fs(sess, query):
             flatten_map[mapping_base][node.flatname] = node.uri
         return flatten_map[mapping_base].get(flatname, None)
 
+def tag_counts(sess):
+    tags = select([node_has_tag_table.c.tag, func.count().label('count')])
+    tags = tags.order_by(desc('count'))
+    tags = tags.group_by(node_has_tag_table.c.tag)
+    return tags
+
+# --- Entity Classes ---------------------------------------------------------
+
 class DummyNode(object):
 
     def __init__(self, label):
@@ -721,6 +729,8 @@ class Tag(object):
 
     def __repr__(self):
         return self.name
+
+# --- Mappers ----------------------------------------------------------------
 
 mapper(Tag, tag_table)
 

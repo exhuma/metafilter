@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<table id="TagList">
+{% for row in tags %}
+
+    <tr>
+        <td>
+            <a href="{{url_for('query', query='tag/'+row.tag)}}">{{row.tag}}</a>
+        </td>
+        <td>{{row.count}}</td>
+    </tr>
+
+{% else %}
+<tr>
+ <tr><em>No tags found!</em></td>
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}
