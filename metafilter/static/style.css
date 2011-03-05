@@ -12,6 +12,13 @@
    font-family: 'Anonymous Pro';
 }
 
+#metanav{
+   font-family: 'Anonymous Pro';
+   border-bottom: 1px solid #ccc;
+   border-top: 1px solid #ccc;
+   padding-bottom: 0.2em;
+}
+
 .rating_button{
    display: inline-block;
    width: 1em;

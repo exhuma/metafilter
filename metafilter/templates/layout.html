@@ -9,9 +9,11 @@
       <script type="text/javascript" src="{{ url_for('static', filename='metafilter.js') }}"></script>
    </head>
    <body>
-      <div class=page>
+      <div class="page">
         <h1>MetaFilter</h1>
-        <div class=metanav>
+        <div id="metanav">
+            <a href="/">Saved Queries</a>&nbsp;-
+            <a href="{{ url_for('tags') }}">Tags</a>
         </div>
         {% for message in get_flashed_messages() %}
           <div class=flash>{{ message }}</div>
