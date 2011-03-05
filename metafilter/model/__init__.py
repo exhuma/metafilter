@@ -97,4 +97,5 @@ def set_dsn(dsn):
 
 from metafilter.model.nodes import Node
 from metafilter.model.queries import Query
+from metafilter.model.tags import Tag
 

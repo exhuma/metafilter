@@ -3,19 +3,19 @@ from sqlalchemy import (
           Column,
           Integer,
           Unicode,
-          ForeignKey,
           String,
           DateTime,
           Boolean,
           UniqueConstraint,
           select,
-          desc,
           func,
+          or_,
           not_)
 from sqlalchemy.orm import mapper, relation
 from sqlalchemy.sql import distinct
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from metafilter.model.queries import Query, query_table
+from metafilter.model.tags import Tag, node_has_tag_table, tag_in_tag_group_table
 from os.path import basename, exists
 from datetime import datetime
 import re
@@ -27,6 +27,8 @@ import parsedatetime.parsedatetime_consts as pdc
 import logging
 
 from metafilter.model import memoized
+
+# --- Table definitions ------------------------------------------------------
 
 nodes_table = Table('node', metadata,
     Column('uri', Unicode, nullable=False, primary_key=True),
@@ -40,15 +42,6 @@ nodes_table = Table('node', metadata,
     UniqueConstraint('uri', name='unique_uri')
 )
 
-tag_table = Table('tag', metadata,
-    Column('name', Unicode, nullable=False, primary_key=True),
-)
-
-node_has_tag_table = Table('node_has_tag', metadata,
-    Column('uri', Unicode, ForeignKey('node.uri'), nullable=False, primary_key=True),
-    Column('tag', Unicode, ForeignKey('tag.name'), nullable=False, primary_key=True),
-)
-
 acknowledged_duplicates_table = Table('acknowledged_duplicates', metadata,
     Column('md5', String, nullable=False, primary_key=True),
 )
@@ -57,6 +50,8 @@ TIME_PATTERN = re.compile(r'(\d{4}-\d{2}-\d{2})?(t)?(\d{4}-\d{2}-\d{2})?')
 LOG = logging.getLogger(__name__)
 PCONST = pdc.Constants()
 CALENDAR = pdt.Calendar(PCONST)
+
+# --- "Static" methods -------------------------------------------------------
 
 def by_uri(session, uri):
     qry = session.query(Node)
@@ -318,6 +313,29 @@ def tagged(sess, stmt, parent_uri, nodes):
 
     return stmt
 
+def in_tag_group(sess, stmt, parent_uri, nodes):
+
+    query_string = 'tag_group/%s' % str.join('/', nodes)
+
+    group_string = nodes.pop(0)
+
+    LOG.debug("Finding entries using tag group string %s in %r" % (group_string, parent_uri))
+
+    groups = group_string.split(',')
+
+    # select tag names
+    tags = select([tag_in_tag_group_table.c.tagname])
+    tags = tags.where(tag_in_tag_group_table.c.groupname.in_(groups))
+
+    # pick out uris which are tagged with those tags
+    uris = select([node_has_tag_table.c.uri])
+    uris = uris.where(node_has_tag_table.c.tag.in_(tags))
+
+    # filter the current query given these tags
+    stmt = stmt.filter(Node.uri.in_(uris))
+
+    return stmt
+
 def duplicates(sess):
 
     acks = select([acknowledged_duplicates_table.c.md5])
@@ -356,6 +374,9 @@ def expected_params(query_types):
             num += 1
 
         if type == 'tag':
+            num += 1
+
+        if type == 'tag_group':
             num += 1
 
     return num
@@ -450,6 +471,7 @@ def from_incremental_query(sess, query):
                 DummyNode('named_queries'),
                 DummyNode('rating'),
                 DummyNode('tag'),
+                DummyNode('tag_group'),
                 ]
     else:
         if query.startswith('root'):
@@ -534,6 +556,9 @@ def from_incremental_query(sess, query):
 
         if query_type == 'tag':
             stmt = tagged(sess, stmt, parent_uri, query_nodes)
+
+        if query_type == 'tag_group':
+            stmt = in_tag_group(sess, stmt, parent_uri, query_nodes)
 
     if not flatten:
         stmt = stmt.subquery()
@@ -642,12 +667,6 @@ def map_to_fs(sess, query):
             flatten_map[mapping_base][node.flatname] = node.uri
         return flatten_map[mapping_base].get(flatname, None)
 
-def tag_counts(sess):
-    tags = select([node_has_tag_table.c.tag, func.count().label('count')])
-    tags = tags.order_by(desc('count'))
-    tags = tags.group_by(node_has_tag_table.c.tag)
-    return tags
-
 # --- Entity Classes ---------------------------------------------------------
 
 class DummyNode(object):
@@ -716,23 +735,7 @@ class Node(DummyNode):
             parent_folder_hints = []
         return "_".join(parent_folder_hints) + "_" + basename(self.uri)
 
-class Tag(object):
-
-    @classmethod
-    def find(self, sess, name):
-        qry = sess.query(Tag)
-        qry = qry.filter( Tag.name == name )
-        return qry.first()
-
-    def __init__(self, name):
-        self.name = name
-
-    def __repr__(self):
-        return self.name
-
 # --- Mappers ----------------------------------------------------------------
-
-mapper(Tag, tag_table)
 
 mapper(Node, nodes_table, properties={
     'tags': relation(Tag, secondary=node_has_tag_table, backref='nodes')

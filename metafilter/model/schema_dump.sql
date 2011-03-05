@@ -1787,6 +1787,29 @@ CREATE TABLE tag (
 ALTER TABLE public.tag OWNER TO filemeta;
 
 --
+-- Name: tag_group; Type: TABLE; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+CREATE TABLE tag_group (
+    name text NOT NULL
+);
+
+
+ALTER TABLE public.tag_group OWNER TO filemeta;
+
+--
+-- Name: tag_in_tag_group; Type: TABLE; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+CREATE TABLE tag_in_tag_group (
+    tagname text NOT NULL,
+    groupname text NOT NULL
+);
+
+
+ALTER TABLE public.tag_in_tag_group OWNER TO filemeta;
+
+--
 -- Name: acknowledged_duplicates_pkey; Type: CONSTRAINT; Schema: public; Owner: filemeta; Tablespace: 
 --
 
@@ -1816,6 +1839,22 @@ ALTER TABLE ONLY node
 
 ALTER TABLE ONLY query
     ADD CONSTRAINT query_pkey PRIMARY KEY (query);
+
+
+--
+-- Name: tag_group_pkey; Type: CONSTRAINT; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+ALTER TABLE ONLY tag_group
+    ADD CONSTRAINT tag_group_pkey PRIMARY KEY (name);
+
+
+--
+-- Name: tag_in_tag_group_pkey; Type: CONSTRAINT; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+ALTER TABLE ONLY tag_in_tag_group
+    ADD CONSTRAINT tag_in_tag_group_pkey PRIMARY KEY (tagname, groupname);
 
 
 --
@@ -1855,6 +1894,22 @@ ALTER TABLE ONLY node_has_tag
 
 ALTER TABLE ONLY node_has_tag
     ADD CONSTRAINT node_has_tag_uri_fkey FOREIGN KEY (uri) REFERENCES node(uri) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: tag_in_tag_group_groupname_fkey; Type: FK CONSTRAINT; Schema: public; Owner: filemeta
+--
+
+ALTER TABLE ONLY tag_in_tag_group
+    ADD CONSTRAINT tag_in_tag_group_groupname_fkey FOREIGN KEY (groupname) REFERENCES tag_group(name) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: tag_in_tag_group_tagname_fkey; Type: FK CONSTRAINT; Schema: public; Owner: filemeta
+--
+
+ALTER TABLE ONLY tag_in_tag_group
+    ADD CONSTRAINT tag_in_tag_group_tagname_fkey FOREIGN KEY (tagname) REFERENCES tag(name) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --

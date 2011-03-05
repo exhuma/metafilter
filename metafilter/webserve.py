@@ -1,6 +1,6 @@
 from flask import Flask, g, render_template, request, redirect, make_response, url_for
-from metafilter.model import Node, Query, Session, set_dsn
-from metafilter.model import queries, nodes
+from metafilter.model import Node, Query, Session, Tag, set_dsn
+from metafilter.model import queries, nodes, tags as tag_model
 import logging
 
 LOG = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ def query(query="root"):
 
 @app.route('/tags')
 def tags():
-    tags = nodes.tag_counts(g.sess)
+    tags = tag_model.tag_counts(g.sess)
     return render_template("tags.html", tags=tags.execute())
 
 @app.route('/delete_from_disk/<path>')
@@ -82,9 +82,9 @@ def tag_all():
     tags = []
     for tagname in request.form['tags'].split(','):
         tagname = tagname.strip()
-        tag = nodes.Tag.find(g.sess, tagname)
+        tag = Tag.find(g.sess, tagname)
         if not tag:
-            tag = nodes.Tag(tagname)
+            tag = Tag(tagname)
         tags.append(tag)
 
     for node in node_qry:
