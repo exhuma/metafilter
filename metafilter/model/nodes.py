@@ -137,7 +137,7 @@ def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail
 
                 attached_file = sess.merge(detached_file)
                 if auto_tags:
-                    set_tags(sess, attached_file, auto_tags)
+                    set_tags(sess, attached_file, auto_tags, False)
                 sess.add(attached_file)
                 sess.commit()
                 LOG.info("Added %s with tags %r" % (attached_file, auto_tags))
@@ -161,7 +161,7 @@ def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail
 
     sess.commit()
 
-def set_tags(sess, uri, new_tags):
+def set_tags(sess, uri, new_tags, purge=True):
     if isinstance(uri, basestring):
         node = by_uri(sess, uri)
     elif isinstance(uri, Node):
@@ -170,9 +170,10 @@ def set_tags(sess, uri, new_tags):
     if not node:
         return
 
-    for tag in node.tags:
-        if tag.name not in new_tags:
-            node.tags.remove(tag)
+    if purge:
+        for tag in node.tags:
+            if tag.name not in new_tags:
+                node.tags.remove(tag)
 
     for tag in new_tags:
         if tag not in node.tags:
