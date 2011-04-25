@@ -9,16 +9,16 @@ from sqlalchemy import (
           UniqueConstraint,
           select,
           func,
-          or_,
           not_)
 from sqlalchemy.orm import mapper, relation
 from sqlalchemy.sql import distinct
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from metafilter.model.queries import Query, query_table
 from metafilter.model.tags import Tag, node_has_tag_table, tag_in_tag_group_table
-from os.path import basename, exists
+from os.path import basename, exists, dirname, split
 from datetime import datetime
 import re
+import os
 from sys import getfilesystemencoding
 
 import parsedatetime.parsedatetime as pdt
@@ -51,7 +51,21 @@ LOG = logging.getLogger(__name__)
 PCONST = pdc.Constants()
 CALENDAR = pdt.Calendar(PCONST)
 
+# folder names must be longer than this to be auto-tagged
+TAIL_DIR_THRESHOLD = 3
+
 # --- "Static" methods -------------------------------------------------------
+
+def splitpath(path):
+    """
+    Split path into all it's elements. Not only head/tail.
+    """
+    output = []
+    while os.sep in path and path != os.sep:
+        head, tail = split(path)
+        output.insert(0, tail)
+        path = head
+    return output
 
 def by_uri(session, uri):
     qry = session.query(Node)
@@ -63,7 +77,7 @@ def by_path(session, path):
     qry = qry.filter( Node.path == path )
     return qry.first()
 
-def update_nodes_from_path(sess, root, oldest_refresh=None):
+def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail = False, auto_tag_words=[]):
     import os
     import mimetypes
     mimetypes.init()
@@ -101,16 +115,32 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
 
             mimetype, _ = mimetypes.guess_type(path)
 
+            auto_tags = set([])
+            unipath = path.decode(getfilesystemencoding())
+            if auto_tag_folder_tail:
+                tailname = split(dirname(unipath))[-1]
+                if tailname and len(tailname) > TAIL_DIR_THRESHOLD:
+                    auto_tags.add(tailname)
+                else:
+                    LOG.warning("Not using %r as auto-tag-name. Either it's empty or too short", tailname)
+
+            if auto_tag_words:
+                for word in auto_tag_words:
+                    if word.lower() in [x.lower() for x in splitpath(dirname(unipath))]:
+                        auto_tags.add(word)
+
             try:
-                detached_file = Node(path.decode(getfilesystemencoding()))
+                detached_file = Node(unipath)
                 detached_file.mimetype = mimetype
                 detached_file.created = create_time
                 detached_file.updated = mod_time
 
                 attached_file = sess.merge(detached_file)
+                if auto_tags:
+                    set_tags(sess, attached_file, auto_tags)
                 sess.add(attached_file)
                 sess.commit()
-                LOG.info("Added %s" % attached_file)
+                LOG.info("Added %s with tags %r" % (attached_file, auto_tags))
             except Exception, exc:
                 LOG.error("%r: %s" % (path, exc))
                 sess.rollback()
@@ -132,7 +162,11 @@ def update_nodes_from_path(sess, root, oldest_refresh=None):
     sess.commit()
 
 def set_tags(sess, uri, new_tags):
-    node = by_uri(sess, uri)
+    if isinstance(uri, basestring):
+        node = by_uri(sess, uri)
+    elif isinstance(uri, Node):
+        node = uri
+
     if not node:
         return
 

@@ -36,8 +36,13 @@ def main():
                 help="Remove orphans after scan. WARNING: this removes file not available on disk! If you work with removable devices, the device should be mounted and available before running this. Otherwise all files on from that device will be removed from the index!")
     parser.add_option("-m", "--md5", dest="md5", default=False, action="store_true",
                 help="Calculate md5sums after scan. This can take a long time, but is necessary to detect moves & duplictates")
+    parser.add_option("-a", "--auto-tag-tail", dest="auto_tag_tail", default=False, action="store_true",
+                help="Automatically add the 'leaf' folder-name to the tags")
+    parser.add_option("-w", "--auto-tag-word", dest="auto_tag_words", default=[], action="append", metavar="WORD",
+                help="If WORD appears anywhere as folder-name in the files path, add it to the tag list. This option can be specified as many times you want.")
     parser.add_option("-v", "--verbose", dest="verbose", default=False, action="store_true",
                 help="Verbose output to stdout")
+
     (options, args) = parser.parse_args()
 
     if options.verbose:
@@ -60,7 +65,8 @@ def main():
     sess = Session()
 
     if not options.no_insert:
-        update_nodes_from_path(sess, args[0], options.since)
+        update_nodes_from_path(sess, args[0], options.since,
+                options.auto_tag_tail, options.auto_tag_words)
 
     if options.purge:
         remove_orphans(sess, args[0])
