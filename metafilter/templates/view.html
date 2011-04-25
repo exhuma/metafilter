@@ -18,10 +18,19 @@
    <a class="rating_button {{ node.rating==4 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', 4); return false;">4</a>&nbsp;
    <a class="rating_button {{ node.rating==5 and 'active_rating' or 'inactive_rating' }}" href="#" onclick="set_rating(this, '{{node.path}}', 5); return false;">5</a>
 </div>
-<center><img src="{{url_for('download', path=node.path)}}" /></center>
+<center><img id="image" src="{{url_for('download', path=node.path)}}" /></center>
 
 <br />
 <a href="{{url_for('view', query=query, index=index-1)}}">Previous</a>
 <a href="{{url_for('view', query=query, index=index+1)}}">Next</a>
+
+<script type="text/javascript">
+   var elem = document.getElementById("image");
+   elem.style.height = "80%";
+   elem.onclick = function(){
+      var elem = document.getElementById("image");
+      elem.style.height = "";
+   }
+</script>
 
 {% endblock %}
