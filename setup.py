@@ -9,7 +9,6 @@ setup(
       'Flask==0.6',
       'sqlalchemy==0.6.5',
       'psycopg2==2.3.0',
-      'fuse-python',
       'PIL',
       ],
    author = "Michel Albert",
