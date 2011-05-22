@@ -7,21 +7,8 @@ from sqlalchemy import (
           desc,
           func,
           )
-from sqlalchemy.orm import mapper, relation
-from sqlalchemy.sql import distinct
-from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
-from metafilter.model.queries import Query, query_table
-from os.path import basename, exists
-from datetime import datetime
-import re
-from sys import getfilesystemencoding
-
-import parsedatetime.parsedatetime as pdt
-import parsedatetime.parsedatetime_consts as pdc
-
-import logging
-
-from metafilter.model import memoized
+from sqlalchemy.orm import mapper
+from metafilter.model import metadata
 
 # --- Table definitions ------------------------------------------------------
 
