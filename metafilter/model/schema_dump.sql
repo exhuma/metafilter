@@ -1756,7 +1756,7 @@ ALTER TABLE public.node OWNER TO filemeta;
 --
 
 CREATE TABLE node_has_tag (
-    uri text NOT NULL,
+    md5 text NOT NULL,
     tag text NOT NULL
 );
 
@@ -1818,14 +1818,6 @@ ALTER TABLE ONLY acknowledged_duplicates
 
 
 --
--- Name: node_has_tag_pkey; Type: CONSTRAINT; Schema: public; Owner: filemeta; Tablespace: 
---
-
-ALTER TABLE ONLY node_has_tag
-    ADD CONSTRAINT node_has_tag_pkey PRIMARY KEY (uri, tag);
-
-
---
 -- Name: node_pkey; Type: CONSTRAINT; Schema: public; Owner: filemeta; Tablespace: 
 --
 
@@ -1866,6 +1858,14 @@ ALTER TABLE ONLY tag
 
 
 --
+-- Name: tmp_pkey; Type: CONSTRAINT; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+ALTER TABLE ONLY node_has_tag
+    ADD CONSTRAINT tmp_pkey PRIMARY KEY (md5, tag);
+
+
+--
 -- Name: unique_uri; Type: CONSTRAINT; Schema: public; Owner: filemeta; Tablespace: 
 --
 
@@ -1878,22 +1878,6 @@ ALTER TABLE ONLY node
 --
 
 CREATE UNIQUE INDEX node_path ON node USING btree (path);
-
-
---
--- Name: node_has_tag_tag_fkey; Type: FK CONSTRAINT; Schema: public; Owner: filemeta
---
-
-ALTER TABLE ONLY node_has_tag
-    ADD CONSTRAINT node_has_tag_tag_fkey FOREIGN KEY (tag) REFERENCES tag(name) ON UPDATE CASCADE ON DELETE CASCADE;
-
-
---
--- Name: node_has_tag_uri_fkey; Type: FK CONSTRAINT; Schema: public; Owner: filemeta
---
-
-ALTER TABLE ONLY node_has_tag
-    ADD CONSTRAINT node_has_tag_uri_fkey FOREIGN KEY (uri) REFERENCES node(uri) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
@@ -1910,6 +1894,14 @@ ALTER TABLE ONLY tag_in_tag_group
 
 ALTER TABLE ONLY tag_in_tag_group
     ADD CONSTRAINT tag_in_tag_group_tagname_fkey FOREIGN KEY (tagname) REFERENCES tag(name) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: tmp_tag_fkey; Type: FK CONSTRAINT; Schema: public; Owner: filemeta
+--
+
+ALTER TABLE ONLY node_has_tag
+    ADD CONSTRAINT tmp_tag_fkey FOREIGN KEY (tag) REFERENCES tag(name) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --

@@ -2,6 +2,7 @@ from sqlalchemy import (
           Table,
           Column,
           Unicode,
+          String,
           ForeignKey,
           select,
           desc,
@@ -22,7 +23,7 @@ tag_in_tag_group_table = Table('tag_in_tag_group', metadata,
 )
 
 node_has_tag_table = Table('node_has_tag', metadata,
-    Column('uri', Unicode, ForeignKey('node.uri'), nullable=False, primary_key=True),
+    Column('md5', String(32), ForeignKey('node.md5'), nullable=False, primary_key=True),
     Column('tag', Unicode, ForeignKey('tag.name'), nullable=False, primary_key=True),
 )
 

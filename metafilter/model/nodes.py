@@ -180,6 +180,8 @@ def set_tags(sess, uri, new_tags, purge=True):
             tmp = Tag.find(sess, tag)
             if not tmp:
                 tmp = Tag(tag)
+            if not node.md5:
+                node.md5 = file_md5(node.uri)
             node.tags.append(tmp)
 
     sess.merge(node)
