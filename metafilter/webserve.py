@@ -139,8 +139,18 @@ def acknowledge_duplicate(md5):
 
 @app.route("/view/<path:query>/<int:index>")
 def view(query, index=0):
+    result = nodes.subdirs(g.sess, query)
+    if not result:
+        result = []
+    result += nodes.from_incremental_query(g.sess, query).order_by(Node.path).all()
+
+    try:
+        result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
+    except Exception, exc:
+        LOG.info(exc)
+
     return render_template("view.html",
-            node = nodes.one_image(g.sess, query, index),
+            node = result[index],
             query = query,
             index = index,
             )
