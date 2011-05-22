@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 from errno import ENOENT, ENOSYS
-from stat import S_IFDIR, ST_NLINK, ST_ATIME, ST_MTIME, ST_CTIME, ST_MODE
+from stat import S_IFDIR
 from sys import argv, exit
 from time import time
 import logging
@@ -11,7 +11,7 @@ import os
 from os.path import exists
 import sys
 
-from fusepy.fuse import FUSE, Operations, FuseOSError, LoggingMixIn
+from fusepy.fuse import FUSE, Operations, FuseOSError
 import metafilter.model
 from metafilter.model import Session
 from metafilter.model.nodes import by_uri, from_incremental_query, map_to_fs, subdirs
@@ -125,8 +125,5 @@ if __name__ == "__main__":
     if len(argv) != 4:
         print 'usage: %s <dsn> <root> <mountpoint>' % argv[0]
         exit(1)
-    fuse = FUSE(
-            MetaFilterFs(argv[1], argv[2]),
-            argv[3],
-            foreground=False,
+    FUSE( MetaFilterFs(argv[1], argv[2]), argv[3], foreground=False,
             allow_other=True)
