@@ -364,12 +364,12 @@ def in_tag_group(sess, stmt, parent_uri, nodes):
     tags = select([tag_in_tag_group_table.c.tagname])
     tags = tags.where(tag_in_tag_group_table.c.groupname.in_(groups))
 
-    # pick out uris which are tagged with those tags
-    uris = select([node_has_tag_table.c.uri])
-    uris = uris.where(node_has_tag_table.c.tag.in_(tags))
+    # pick out md5sums which are tagged with those tags
+    md5sums = select([node_has_tag_table.c.md5])
+    md5sums = md5sums.where(node_has_tag_table.c.tag.in_(tags))
 
     # filter the current query given these tags
-    stmt = stmt.filter(Node.uri.in_(uris))
+    stmt = stmt.filter(Node.md5.in_(md5sums))
 
     return stmt
 
@@ -486,6 +486,9 @@ def subdirs(sess, query):
         if query_type == 'tag':
             stmt = tagged(sess, stmt, parent_uri, query_nodes)
 
+        if query_type == 'tag_group':
+            stmt = in_tag_group(sess, stmt, parent_uri, query_nodes)
+
     return [DummyNode(x[0].rsplit('.', 1)[-1]) for x in stmt]
 
 def one_image(sess, query, offset):
@@ -495,6 +498,7 @@ def one_image(sess, query, offset):
     node = stmt.first()
     return node
 
+@memoized
 def from_incremental_query(sess, query):
     LOG.debug('parsing incremental query %r' % query)
 
@@ -685,13 +689,9 @@ def map_to_fs(sess, query):
     elif map_nodes[-1] == '__flat__':
         return '/'
 
-    elif "__flat__" in map_nodes:
+    elif map_nodes[-2] == '__flat__':
 
-        flat_pos = map_nodes.index('__flat__')
-        mapping_base = query_nodes[0:query_nodes.index('__flat__')+1]
-
-        # in normal cases, we should only have one entry after __flat__. Which
-        # is it's whole purpose!
+        mapping_base = query_nodes[0:-1]
         flatname = map_nodes[-1]
 
         LOG.debug('flattened mapping of %r ' % map_nodes)
@@ -699,6 +699,7 @@ def map_to_fs(sess, query):
 
         flatten_map = {}
         flatten_map[mapping_base] = {}
+
         stmt = from_incremental_query(sess, mapping_base)
         for node in stmt:
             flatten_map[mapping_base][node.flatname] = node.uri

@@ -13,7 +13,7 @@ import sys
 
 from fusepy.fuse import FUSE, Operations, FuseOSError
 import metafilter.model
-from metafilter.model import Session
+from metafilter.model import Session, memoized
 from metafilter.model.nodes import by_uri, from_incremental_query, map_to_fs, subdirs
 
 class MetaFilterFs(Operations):
@@ -52,10 +52,15 @@ class MetaFilterFs(Operations):
         self.log.setLevel(logging.DEBUG)
 
     def getattr(self, path, fh=None):
+        self.log.debug("Entering getattr. Locals: %r" % locals())
+
         if path.startswith('/.Trash'):
             raise FuseOSError(ENOENT)
 
-        fs_path = map_to_fs(self.sess, path)
+        if path != "/":
+            fs_path = map_to_fs(self.sess, path)
+        else:
+            fs_path = None
 
         self.log.debug( 'Mapped %r to %r' % (path, fs_path) )
 
@@ -89,6 +94,7 @@ class MetaFilterFs(Operations):
         raise FuseOSError(ENOSYS)
 
     def read(self, path, size, offset, fh):
+        self.log.debug("Entering read. Locals: %r" % locals())
         fs_path = map_to_fs(self.sess, path)
         self.log.info('Reading local file %r' % fs_path)
         fptr = open(fs_path)
@@ -97,6 +103,7 @@ class MetaFilterFs(Operations):
         fptr.close()
         return data
 
+    @memoized
     def readdir(self, path, fh):
         self.log.info("*** readdir %r with fh %r" % (path, fh))
 

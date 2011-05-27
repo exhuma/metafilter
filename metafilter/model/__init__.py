@@ -1,3 +1,4 @@
+import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy import MetaData
 from sqlalchemy.orm import sessionmaker
@@ -7,6 +8,7 @@ from datetime import datetime, timedelta
 import re
 
 import logging
+import functools
 
 NON_LTREE = re.compile(r'[^a-zA-Z0-9/]')
 LOG = logging.getLogger(__name__)
@@ -36,11 +38,17 @@ class memoized(object):
         except KeyError:
             LOG.debug("Initialising cache for args %r." % (args,))
             value = self.func(*args)
-            self.cache[args] = (value, datetime.now())
-            return value
+            if isinstance(value, sqlalchemy.orm.query.Query):
+                result = value.all()
+                self.cache[args] = (result, datetime.now())
+                return result
+            else:
+                self.cache[args] = (value, datetime.now())
+                return value
         except TypeError:
             # uncachable -- for instance, passing a list as an argument.
             # Better to not cache than to blow up entirely.
+            LOG.warning("Uncachable function call for args %r" % (args,))
             return self.func(*args)
 
     def __repr__(self):
