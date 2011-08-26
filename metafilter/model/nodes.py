@@ -9,6 +9,10 @@ from sqlalchemy import (
           UniqueConstraint,
           select,
           func,
+          and_,
+          or_,
+          bindparam,
+          text,
           not_)
 from sqlalchemy.orm import mapper, relation
 from sqlalchemy.sql import distinct
@@ -333,6 +337,11 @@ def dated(sess, stmt, parent_uri, nodes):
     return stmt
 
 def tagged(sess, stmt, parent_uri, nodes):
+    """
+    Find nodes with specific tags. Tags can be comma separated or
+    plus-separated. Plus binds the tags in a conjunction, while commas use a
+    disjunction. MRO: conjuction -> disjunction
+    """
 
     query_string = 'tag/%s' % str.join('/', nodes)
 
@@ -340,13 +349,32 @@ def tagged(sess, stmt, parent_uri, nodes):
 
     LOG.debug("Finding entries using tag string %s in %r" % (tag_string, parent_uri))
 
-    tags = tag_string.split(',')
+    tagspec = [[x.strip() for x in _.strip().split('+')] for _ in tag_string.split(',')]
+    LOG.debug("Parsed filters: %r" % tagspec)
 
-    for tag_name in tags:
-        tag = Tag.find(sess, tag_name)
-        if not tag:
-            continue
-        stmt = stmt.filter(Node.tags.contains(tag))
+    flat_tags = [item for  sublist in tagspec for item in sublist]
+
+    disjunctions = []
+    tag_offset = 0
+    for conjunction in tagspec:
+        # complicated stuff to prevent SQL injections...
+        template = 'ARRAY[%s]'
+        placeholders = ', '.join([':tag_%d' % _ for _ in range(tag_offset,
+            tag_offset+len(conjunction))])
+        sql = text('ARRAY[%s]' % placeholders, bindparams=[
+            bindparam('tag_%d' % (tag_offset+pos), value) for pos, value in enumerate(conjunction)
+            ])
+
+        tmp = func.array_agg(node_has_tag_table.c.tag).op('@>')(sql)
+        disjunctions.append(tmp)
+        tag_offset += len(conjunction)
+
+    subq = select([node_has_tag_table.c.md5])
+    subq = subq.where(Tag.name.in_(flat_tags))
+    subq = subq.group_by(node_has_tag_table.c.md5)
+    subq = subq.having(or_(*disjunctions))
+
+    stmt = stmt.filter(Node.md5.in_(subq))
 
     return stmt
 
@@ -534,7 +562,7 @@ def from_incremental_query(sess, query):
 
     # Construct the different queries
     if len(query_types) == 1 and query_types[0] == 'all':
-        return all(sess, query_nodes, flatten)
+        return all(sess, query_nodes, flatten).order_by(Node.uri)
 
     if 'named_queries' in query_types and not query_nodes:
         nq_qry = sess.query(Query)
@@ -605,9 +633,10 @@ def from_incremental_query(sess, query):
         stmt = stmt.subquery()
         qry = sess.query( Node )
         qry = qry.filter( Node.path.in_(stmt) )
+        qry = qry.order_by(Node.uri)
         return qry
 
-    return stmt
+    return stmt.order_by(Node.uri)
 
 def map_to_fsold(query):
     """

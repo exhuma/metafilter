@@ -28,7 +28,7 @@ def query(query="root"):
     result = nodes.subdirs(g.sess, query)
     if not result:
         result = []
-    result += nodes.from_incremental_query(g.sess, query).order_by(Node.path).all()
+    result += nodes.from_incremental_query(g.sess, query)
 
     try:
         result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
@@ -142,7 +142,7 @@ def view(query, index=0):
     result = nodes.subdirs(g.sess, query)
     if not result:
         result = []
-    result += nodes.from_incremental_query(g.sess, query).order_by(Node.path).all()
+    result += nodes.from_incremental_query(g.sess, query)
 
     try:
         result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
