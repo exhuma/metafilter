@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+    <head>
+        <title>MetaFilter</title>
+        <link rel=stylesheet type=text/css href="{{ url_for('static', filename='fullscreen.css') }}">
+        <script type="text/javascript" src="{{ url_for('static', filename='jquery-1.4.4.min.js') }}"></script>
+        <script type="text/javascript" src="{{ url_for('static', filename='jquery.jeditable.mini.js') }}"></script>
+        <script type="text/javascript" src="{{ url_for('static', filename='metafilter.js') }}"></script>
+    </head>
+    <body>
+        <center>
+            <img id="image" />
+            <br />
+            <a href="javascript:toggleSlideShow();">SlideShow</a>
+        </center>
+        <script type="text/javascript">
+
+            var index = 0;
+
+            var slideshow = false;
+
+            var nextSlide = function(){
+                if (!slideshow){
+                    return;
+                }
+                loadNext();
+                setTimeout("nextSlide()", 5000);
+            }
+
+            var toggleSlideShow = function(){
+                slideshow = !slideshow;
+                nextSlide();
+            }
+
+            var loadNext = function(){
+                index += 1;
+                $.ajax({
+                    url: "/file_uri/{{query}}/"+index,
+                    success: function(data){
+                        if ( !data.url ){
+                            index = -1;
+                            loadNext();
+                        }
+                        elem.src=data.url;
+                    }
+                });
+            }
+
+            var elem = document.getElementById("image");
+            //elem.style.height = "100%";
+            elem.style.maxHeight = "100%";
+            elem.style.maxWidth = "100%";
+            elem.onclick = loadNext;
+
+            $(document).ready(function() {
+                $.ajax({
+                    url: "{{url_for('file_uri', query=query, index=0)}}",
+                    success: function(data){
+                        elem.src=data.url;
+                    }
+                });
+            });
+
+        </script>
+    </body>
+</html>
+

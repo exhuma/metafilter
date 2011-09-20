@@ -1,4 +1,12 @@
-from flask import Flask, g, render_template, request, redirect, make_response, url_for
+from flask import (
+        Flask,
+        g,
+        render_template,
+        request,
+        redirect,
+        make_response,
+        url_for,
+        jsonify)
 from metafilter.model import Node, Query, Session, Tag, set_dsn
 from metafilter.model import queries, nodes, tags as tag_model
 import logging
@@ -143,6 +151,7 @@ def view(query, index=0):
     if not result:
         result = []
     result += nodes.from_incremental_query(g.sess, query)
+    result = filter(lambda x: x.mimetype != 'other/directory', result)
 
     try:
         result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
@@ -155,8 +164,46 @@ def view(query, index=0):
             index = index,
             )
 
+@app.route("/file_uri/<path:query>/<int:index>")
+def file_uri(query, index):
+    """
+    Retrieve the file URI for the given query on the given index
+    """
+    result = nodes.subdirs(g.sess, query)
+    if not result:
+        result = []
+    result += nodes.from_incremental_query(g.sess, query)
+    result = filter(lambda x: x.mimetype in (
+        'image/jpeg',
+        'image/png',
+        'image/jpg'), result)
+
+    try:
+        result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
+    except Exception, exc:
+        LOG.info(exc)
+
+    if index > len(result)-1:
+        return jsonify(dict(
+            url = None
+            ))
+
+    return jsonify(dict(
+        url = url_for('download', path=result[index].path)
+        ))
+
+@app.route("/fullscreen/<path:query>")
+def fullscreen(query):
+    """
+    Displays an entry in a fullscreen view
+    """
+
+    return render_template("fullscreen.html",
+            query = query,
+            )
+
 if __name__ == "__main__":
     app.debug = True
     logging.basicConfig(level=logging.DEBUG)
-    set_dsn("postgresql://filemeta:filemeta@localhost/filemeta_old")
+    set_dsn("postgresql://filemeta:filemeta@localhost:5433/filemeta")
     app.run(host="0.0.0.0", port=8181)
