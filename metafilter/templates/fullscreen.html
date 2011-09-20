@@ -32,6 +32,23 @@
                 nextSlide();
             }
 
+            var resize = function(){
+                var elem = document.getElementById("image");
+                var cw = window.innerWidth;
+                var ch = window.innerHeight;
+                var iw = elem.width;
+                var ih = elem.height;
+                var ir = iw/ih;
+                var cr = cw/ch;
+                if (ir > cr){
+                    elem.style.width = cw + "px";
+                    elem.style.height = '';
+                } else {
+                    elem.style.width = '';
+                    elem.style.height = ch + "px";
+                }
+            }
+
             var loadNext = function(){
                 index += 1;
                 $.ajax({
@@ -42,14 +59,14 @@
                             loadNext();
                         }
                         elem.src=data.url;
+                        elem.onload = function(){
+                            resize();
+                        };
                     }
                 });
             }
 
             var elem = document.getElementById("image");
-            //elem.style.height = "100%";
-            elem.style.maxHeight = "100%";
-            elem.style.maxWidth = "100%";
             elem.onclick = loadNext;
 
             $(document).ready(function() {
@@ -57,6 +74,9 @@
                     url: "{{url_for('file_uri', query=query, index=0)}}",
                     success: function(data){
                         elem.src=data.url;
+                        elem.onload = function(){
+                            resize();
+                        };
                     }
                 });
             });
