@@ -1,3 +1,6 @@
+from ConfigParser import SafeConfigParser
+from cStringIO import StringIO
+
 import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy import MetaData
@@ -12,8 +15,27 @@ import functools
 
 NON_LTREE = re.compile(r'[^a-zA-Z0-9/]')
 LOG = logging.getLogger(__name__)
+CONFIG = None
 metadata = MetaData()
 Session = sessionmaker()
+
+def loadconfig(filename):
+
+    defaults=StringIO("""\
+[cli_logging]
+error_log=
+""")
+
+    config = SafeConfigParser()
+    config.readfp(defaults)
+    config.read(filename)
+
+    dsn = config.get('database', 'dsn', None)
+    if not dsn:
+        raise ValueError('No DSN found in the config file! This is required!')
+
+    set_dsn(dsn)
+    return config
 
 class memoized(object):
     """Decorator that caches a function's return value each time it is called.
@@ -107,3 +129,23 @@ from metafilter.model.nodes import Node
 from metafilter.model.queries import Query
 from metafilter.model.tags import Tag
 
+#
+# Parse the config file
+#
+from os.path import join, exists, expanduser
+from os import getcwd
+
+paths = [
+    join(getcwd(), 'config.ini'),
+    join(expanduser("~"), 'metafilter', 'config.ini'),
+    join('/', 'etc', 'metafilter', 'config.ini'),
+]
+
+for path in paths:
+    if not exists(path):
+        continue
+    LOG.debug('Reading config from %s' % path)
+    CONFIG = loadconfig(path)
+
+if not CONFIG:
+    LOG.error('Unable to open config file (search order: %s)' % (', '.join(paths)))

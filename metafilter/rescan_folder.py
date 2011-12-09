@@ -1,33 +1,37 @@
 #!/usr/bin/python
-from metafilter.model import Session
-import metafilter.model
-from metafilter.model.nodes import update_nodes_from_path, remove_orphans, calc_md5
-from datetime import datetime
+from os.path import expanduser, dirname, exists
+from os import makedirs
 import sys
+from datetime import datetime
 from optparse import OptionParser
-
 import logging
 import logging.handlers
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
-ERROR_HANDLER = logging.handlers.RotatingFileHandler(filename='errors.log', maxBytes=102400, backupCount=5)
-CONSOLE_HANDLER = logging.StreamHandler()
-ERROR_HANDLER.setLevel(logging.WARNING)
-CONSOLE_HANDLER.setLevel(logging.WARNING)
 FORMATTER = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-ERROR_HANDLER.setFormatter(FORMATTER)
+CONSOLE_HANDLER = logging.StreamHandler()
+CONSOLE_HANDLER.setLevel(logging.INFO)
 CONSOLE_HANDLER.setFormatter(FORMATTER)
 logging.getLogger().setLevel(logging.DEBUG)
-logging.getLogger().addHandler(ERROR_HANDLER)
 logging.getLogger().addHandler(CONSOLE_HANDLER)
 
+from metafilter.model import Session, CONFIG
+from metafilter.model.nodes import update_nodes_from_path, remove_orphans, calc_md5
+
+error_log = expanduser(CONFIG.get('cli_logging', 'error_log', None))
+if error_log:
+    if not exists(dirname(error_log)):
+        LOG.info('Creating logging folder: %s' % dirname(error_log))
+        makedirs(dirname(error_log))
+    ERROR_HANDLER = logging.handlers.RotatingFileHandler(filename=error_log, maxBytes=102400, backupCount=5)
+    ERROR_HANDLER.setLevel(logging.WARNING)
+    ERROR_HANDLER.setFormatter(FORMATTER)
+    logging.getLogger().addHandler(ERROR_HANDLER)
+
 def main():
-    parser = OptionParser()
-    parser.add_option("-d", "--dsn", dest="dsn",
-                            help="Database DSN (see sqlalchemy docs for details)",
-                            metavar="DSN")
+    parser = OptionParser(usage='usage: %prog [options] <scan_folder>')
     parser.add_option("-s", "--since", dest="since", default=None,
                             help="Only scan file that changed after this date (format: YYYY-MM-DD)")
     parser.add_option("-n", "--no-insert", dest="no_insert", default=False, action='store_true',
@@ -42,17 +46,15 @@ def main():
                 help="If WORD appears anywhere as folder-name in the files path, add it to the tag list. This option can be specified as many times you want.")
     parser.add_option("-v", "--verbose", dest="verbose", default=False, action="store_true",
                 help="Verbose output to stdout")
+    parser.add_option("-q", "--quiet", dest="quiet", default=False, action="store_true",
+                help="Suppresses informational messages from output (overrides -v)")
 
     (options, args) = parser.parse_args()
 
     if options.verbose:
         CONSOLE_HANDLER.setLevel(logging.DEBUG)
-
-    if not options.dsn:
-        print >> sys.stderr, "The '-d/--dsn' option is required!"
-        sys.exit(9)
-
-    metafilter.model.set_dsn(options.dsn)
+    if options.quiet:
+        CONSOLE_HANDLER.setLevel(logging.WARNING)
 
     if options.since:
         try:
@@ -61,6 +63,10 @@ def main():
             LOG.error(exc)
             options.since = None
 
+    if not args:
+        LOG.critical("No path specified!")
+        print parser.print_usage()
+        sys.exit(9)
 
     sess = Session()
 
