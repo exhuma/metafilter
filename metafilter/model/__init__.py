@@ -137,7 +137,7 @@ from os import getcwd
 
 paths = [
     join(getcwd(), 'config.ini'),
-    join(expanduser("~"), 'metafilter', 'config.ini'),
+    join(expanduser("~"), '.metafilter', 'config.ini'),
     join('/', 'etc', 'metafilter', 'config.ini'),
 ]
 
