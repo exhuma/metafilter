@@ -133,7 +133,7 @@ from metafilter.model.tags import Tag
 # Parse the config file
 #
 from os.path import join, exists, expanduser
-from os import getcwd
+from os import getcwd, getenv
 
 paths = [
     join(getcwd(), 'config.ini'),
@@ -141,10 +141,14 @@ paths = [
     join('/', 'etc', 'metafilter', 'config.ini'),
 ]
 
+if getenv('METAFILTER_CONFIG'):
+    paths = [getenv('METAFILTER_CONFIG')]
+
 for path in paths:
     if not exists(path):
         continue
     LOG.debug('Reading config from %s' % path)
+    print 'Reading config from %s' % path
     CONFIG = loadconfig(path)
 
 if not CONFIG:

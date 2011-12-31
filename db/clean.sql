@@ -1,0 +1,10 @@
+SET client_min_messages = warning;
+DROP TABLE file;
+DROP TABLE node_has_tag;
+DROP TABLE tag_in_tag_group;
+DROP TABLE tag_group;
+DROP TABLE tag;
+DROP TABLE query;
+DROP TABLE node_represented_by_file;
+DROP TABLE node;
+DROP TABLE acknowledged_duplicates;

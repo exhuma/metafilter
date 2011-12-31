@@ -11,10 +11,12 @@ setup(
       'sqlalchemy==0.6.5',
       'psycopg2==2.3.0',
       'PIL',
-      'simplejson'
+      'simplejson',
+      'unittest2',
       ],
    author = "Michel Albert",
    author_email = "michel@albert.lu",
    description = "File indexer",
    license = "BSD",
+   test_suite = 'tests',
 )
