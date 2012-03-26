@@ -107,6 +107,10 @@ def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail
                 LOG.warning("Not a regular file: %r" % path)
                 continue
 
+            if file == 'tag.hints':
+                LOG.debug('Skipping tag.hints file')
+                continue
+
             mod_time = max(
                     datetime.fromtimestamp(os.stat(path).st_mtime),
                     datetime.fromtimestamp(os.stat(path).st_ctime)
@@ -139,7 +143,31 @@ def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail
                 detached_file.created = create_time
                 detached_file.updated = mod_time
 
+                # process "tag.hints"
+                #
+                # the file contains a comma-separated list of tags applied to
+                # all files in this folder
+                #
+                # If a line contains '::' the tags only apply to the filename
+                # given before the '::' separator. Example:
+                #
+                # thefile.txt::documentation, project a, draft
                 attached_file = sess.merge(detached_file)
+                unidir = dirname(unipath)
+                hints_file = join(unidir, 'tag.hints')
+                if exists(hints_file):
+                    for line in open(hints_file).readlines():
+                        if not '::' in line:
+                            hint_tags = [_.strip() for _ in line.split(',')]
+                            for tag in hint_tags:
+                                auto_tags.add(tag)
+                        else:
+                            filename, tags = line.split('::')
+                            if file == filename.strip():
+                                hint_tags = [_.strip() for _ in tags.split(',')]
+                                for tag in hint_tags:
+                                    auto_tags.add(tag)
+
                 if auto_tags:
                     set_tags(sess, attached_file, auto_tags, False)
                 sess.add(attached_file)
