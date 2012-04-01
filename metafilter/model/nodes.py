@@ -95,7 +95,12 @@ def add_sparse_metadata(node):
     import Image
     if node.mimetype in ('image/jpeg', ):
         im = Image.open(node.uri)
-        md5 = file_md5(node.uri)
+        md5 = node.md5
+        if not md5:
+            md5 = file_md5(node.uri)
+            upd = nodes_table.update().where(
+                    nodes_table.c.uri == node.uri).values(
+                            md5=md5)
         aspect_ratio = "%.3f" % (float(im.size[0]) / float(im.size[1]))
         values = dict(
             md5 = md5,
