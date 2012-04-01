@@ -351,6 +351,16 @@ def rated(stmt, parent_uri, nodes):
 
     return stmt
 
+def mimetype(stmt, parent_uri, nodes):
+
+    mimetype_major = nodes.pop(0)
+    mimetype_minor = nodes.pop(0)
+    mimetype = '%s/%s' % (mimetype_major, mimetype_minor)
+
+    stmt = stmt.filter(Node.mimetype == mimetype)
+
+    return stmt
+
 def in_path(stmt, nodes):
 
     substring = nodes.pop(0)
@@ -577,6 +587,9 @@ def expected_params(query_types):
 
     for type in query_types:
 
+        if type == 'mimetype':
+            num += 2
+
         if type == 'rating':
             num += 2
 
@@ -661,6 +674,9 @@ def subdirs(sess, query):
 
         if query_type == 'rating':
             stmt = rated(stmt, parent_uri, query_nodes)
+
+        if query_type == 'mimetype':
+            stmt = mimetype(stmt, parent_uri, query_nodes)
 
         if query_type == 'aspect_range':
             stmt = aspect_range(stmt, parent_uri, query_nodes)
@@ -776,6 +792,9 @@ def from_incremental_query(sess, query):
     for query_type in query_types:
         if query_type == 'date':
             stmt = dated(sess, stmt, parent_uri, query_nodes)
+
+        if query_type == 'mimetype':
+            stmt = mimetype(stmt, parent_uri, query_nodes)
 
         if query_type == 'rating':
             stmt = rated(stmt, parent_uri, query_nodes)
