@@ -2,11 +2,39 @@
 -- PostgreSQL database dump
 --
 
+SET statement_timeout = 0;
 SET client_encoding = 'UTF8';
-SET standard_conforming_strings = off;
+SET standard_conforming_strings = on;
 SET check_function_bodies = false;
 SET client_min_messages = warning;
-SET escape_string_warning = off;
+
+--
+-- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: 
+--
+
+CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
+
+
+--
+-- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
+
+
+--
+-- Name: hstore; Type: EXTENSION; Schema: -; Owner: 
+--
+
+CREATE EXTENSION IF NOT EXISTS hstore WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION hstore; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION hstore IS 'data type for storing sets of (key, value) pairs';
+
 
 SET search_path = public, pg_catalog;
 
@@ -22,8 +50,8 @@ CREATE TYPE lquery;
 --
 
 CREATE FUNCTION lquery_in(cstring) RETURNS lquery
-    AS '$libdir/ltree', 'lquery_in'
-    LANGUAGE c STRICT;
+    LANGUAGE c STRICT
+    AS '$libdir/ltree', 'lquery_in';
 
 
 ALTER FUNCTION public.lquery_in(cstring) OWNER TO postgres;
@@ -33,8 +61,8 @@ ALTER FUNCTION public.lquery_in(cstring) OWNER TO postgres;
 --
 
 CREATE FUNCTION lquery_out(lquery) RETURNS cstring
-    AS '$libdir/ltree', 'lquery_out'
-    LANGUAGE c STRICT;
+    LANGUAGE c STRICT
+    AS '$libdir/ltree', 'lquery_out';
 
 
 ALTER FUNCTION public.lquery_out(lquery) OWNER TO postgres;
@@ -66,8 +94,8 @@ CREATE TYPE ltree;
 --
 
 CREATE FUNCTION ltree_in(cstring) RETURNS ltree
-    AS '$libdir/ltree', 'ltree_in'
-    LANGUAGE c STRICT;
+    LANGUAGE c STRICT
+    AS '$libdir/ltree', 'ltree_in';
 
 
 ALTER FUNCTION public.ltree_in(cstring) OWNER TO postgres;
@@ -77,8 +105,8 @@ ALTER FUNCTION public.ltree_in(cstring) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_out(ltree) RETURNS cstring
-    AS '$libdir/ltree', 'ltree_out'
-    LANGUAGE c STRICT;
+    LANGUAGE c STRICT
+    AS '$libdir/ltree', 'ltree_out';
 
 
 ALTER FUNCTION public.ltree_out(ltree) OWNER TO postgres;
@@ -110,8 +138,8 @@ CREATE TYPE ltree_gist;
 --
 
 CREATE FUNCTION ltree_gist_in(cstring) RETURNS ltree_gist
-    AS '$libdir/ltree', 'ltree_gist_in'
-    LANGUAGE c STRICT;
+    LANGUAGE c STRICT
+    AS '$libdir/ltree', 'ltree_gist_in';
 
 
 ALTER FUNCTION public.ltree_gist_in(cstring) OWNER TO postgres;
@@ -121,8 +149,8 @@ ALTER FUNCTION public.ltree_gist_in(cstring) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_gist_out(ltree_gist) RETURNS cstring
-    AS '$libdir/ltree', 'ltree_gist_out'
-    LANGUAGE c STRICT;
+    LANGUAGE c STRICT
+    AS '$libdir/ltree', 'ltree_gist_out';
 
 
 ALTER FUNCTION public.ltree_gist_out(ltree_gist) OWNER TO postgres;
@@ -154,8 +182,8 @@ CREATE TYPE ltxtquery;
 --
 
 CREATE FUNCTION ltxtq_in(cstring) RETURNS ltxtquery
-    AS '$libdir/ltree', 'ltxtq_in'
-    LANGUAGE c STRICT;
+    LANGUAGE c STRICT
+    AS '$libdir/ltree', 'ltxtq_in';
 
 
 ALTER FUNCTION public.ltxtq_in(cstring) OWNER TO postgres;
@@ -165,8 +193,8 @@ ALTER FUNCTION public.ltxtq_in(cstring) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltxtq_out(ltxtquery) RETURNS cstring
-    AS '$libdir/ltree', 'ltxtq_out'
-    LANGUAGE c STRICT;
+    LANGUAGE c STRICT
+    AS '$libdir/ltree', 'ltxtq_out';
 
 
 ALTER FUNCTION public.ltxtq_out(ltxtquery) OWNER TO postgres;
@@ -191,8 +219,8 @@ ALTER TYPE public.ltxtquery OWNER TO postgres;
 --
 
 CREATE FUNCTION _lt_q_regex(ltree[], lquery[]) RETURNS boolean
-    AS '$libdir/ltree', '_lt_q_regex'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_lt_q_regex';
 
 
 ALTER FUNCTION public._lt_q_regex(ltree[], lquery[]) OWNER TO postgres;
@@ -202,8 +230,8 @@ ALTER FUNCTION public._lt_q_regex(ltree[], lquery[]) OWNER TO postgres;
 --
 
 CREATE FUNCTION _lt_q_rregex(lquery[], ltree[]) RETURNS boolean
-    AS '$libdir/ltree', '_lt_q_rregex'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_lt_q_rregex';
 
 
 ALTER FUNCTION public._lt_q_rregex(lquery[], ltree[]) OWNER TO postgres;
@@ -213,8 +241,8 @@ ALTER FUNCTION public._lt_q_rregex(lquery[], ltree[]) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltq_extract_regex(ltree[], lquery) RETURNS ltree
-    AS '$libdir/ltree', '_ltq_extract_regex'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltq_extract_regex';
 
 
 ALTER FUNCTION public._ltq_extract_regex(ltree[], lquery) OWNER TO postgres;
@@ -224,8 +252,8 @@ ALTER FUNCTION public._ltq_extract_regex(ltree[], lquery) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltq_regex(ltree[], lquery) RETURNS boolean
-    AS '$libdir/ltree', '_ltq_regex'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltq_regex';
 
 
 ALTER FUNCTION public._ltq_regex(ltree[], lquery) OWNER TO postgres;
@@ -235,8 +263,8 @@ ALTER FUNCTION public._ltq_regex(ltree[], lquery) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltq_rregex(lquery, ltree[]) RETURNS boolean
-    AS '$libdir/ltree', '_ltq_rregex'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltq_rregex';
 
 
 ALTER FUNCTION public._ltq_rregex(lquery, ltree[]) OWNER TO postgres;
@@ -246,8 +274,8 @@ ALTER FUNCTION public._ltq_rregex(lquery, ltree[]) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltree_compress(internal) RETURNS internal
-    AS '$libdir/ltree', '_ltree_compress'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', '_ltree_compress';
 
 
 ALTER FUNCTION public._ltree_compress(internal) OWNER TO postgres;
@@ -257,8 +285,8 @@ ALTER FUNCTION public._ltree_compress(internal) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltree_consistent(internal, internal, smallint) RETURNS boolean
-    AS '$libdir/ltree', '_ltree_consistent'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', '_ltree_consistent';
 
 
 ALTER FUNCTION public._ltree_consistent(internal, internal, smallint) OWNER TO postgres;
@@ -268,8 +296,8 @@ ALTER FUNCTION public._ltree_consistent(internal, internal, smallint) OWNER TO p
 --
 
 CREATE FUNCTION _ltree_extract_isparent(ltree[], ltree) RETURNS ltree
-    AS '$libdir/ltree', '_ltree_extract_isparent'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltree_extract_isparent';
 
 
 ALTER FUNCTION public._ltree_extract_isparent(ltree[], ltree) OWNER TO postgres;
@@ -279,8 +307,8 @@ ALTER FUNCTION public._ltree_extract_isparent(ltree[], ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltree_extract_risparent(ltree[], ltree) RETURNS ltree
-    AS '$libdir/ltree', '_ltree_extract_risparent'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltree_extract_risparent';
 
 
 ALTER FUNCTION public._ltree_extract_risparent(ltree[], ltree) OWNER TO postgres;
@@ -290,8 +318,8 @@ ALTER FUNCTION public._ltree_extract_risparent(ltree[], ltree) OWNER TO postgres
 --
 
 CREATE FUNCTION _ltree_isparent(ltree[], ltree) RETURNS boolean
-    AS '$libdir/ltree', '_ltree_isparent'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltree_isparent';
 
 
 ALTER FUNCTION public._ltree_isparent(ltree[], ltree) OWNER TO postgres;
@@ -301,8 +329,8 @@ ALTER FUNCTION public._ltree_isparent(ltree[], ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltree_penalty(internal, internal, internal) RETURNS internal
-    AS '$libdir/ltree', '_ltree_penalty'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltree_penalty';
 
 
 ALTER FUNCTION public._ltree_penalty(internal, internal, internal) OWNER TO postgres;
@@ -312,8 +340,8 @@ ALTER FUNCTION public._ltree_penalty(internal, internal, internal) OWNER TO post
 --
 
 CREATE FUNCTION _ltree_picksplit(internal, internal) RETURNS internal
-    AS '$libdir/ltree', '_ltree_picksplit'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', '_ltree_picksplit';
 
 
 ALTER FUNCTION public._ltree_picksplit(internal, internal) OWNER TO postgres;
@@ -323,8 +351,8 @@ ALTER FUNCTION public._ltree_picksplit(internal, internal) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltree_r_isparent(ltree, ltree[]) RETURNS boolean
-    AS '$libdir/ltree', '_ltree_r_isparent'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltree_r_isparent';
 
 
 ALTER FUNCTION public._ltree_r_isparent(ltree, ltree[]) OWNER TO postgres;
@@ -334,8 +362,8 @@ ALTER FUNCTION public._ltree_r_isparent(ltree, ltree[]) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltree_r_risparent(ltree, ltree[]) RETURNS boolean
-    AS '$libdir/ltree', '_ltree_r_risparent'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltree_r_risparent';
 
 
 ALTER FUNCTION public._ltree_r_risparent(ltree, ltree[]) OWNER TO postgres;
@@ -345,8 +373,8 @@ ALTER FUNCTION public._ltree_r_risparent(ltree, ltree[]) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltree_risparent(ltree[], ltree) RETURNS boolean
-    AS '$libdir/ltree', '_ltree_risparent'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltree_risparent';
 
 
 ALTER FUNCTION public._ltree_risparent(ltree[], ltree) OWNER TO postgres;
@@ -356,8 +384,8 @@ ALTER FUNCTION public._ltree_risparent(ltree[], ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltree_same(internal, internal, internal) RETURNS internal
-    AS '$libdir/ltree', '_ltree_same'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', '_ltree_same';
 
 
 ALTER FUNCTION public._ltree_same(internal, internal, internal) OWNER TO postgres;
@@ -367,8 +395,8 @@ ALTER FUNCTION public._ltree_same(internal, internal, internal) OWNER TO postgre
 --
 
 CREATE FUNCTION _ltree_union(internal, internal) RETURNS integer
-    AS '$libdir/ltree', '_ltree_union'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', '_ltree_union';
 
 
 ALTER FUNCTION public._ltree_union(internal, internal) OWNER TO postgres;
@@ -378,8 +406,8 @@ ALTER FUNCTION public._ltree_union(internal, internal) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltxtq_exec(ltree[], ltxtquery) RETURNS boolean
-    AS '$libdir/ltree', '_ltxtq_exec'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltxtq_exec';
 
 
 ALTER FUNCTION public._ltxtq_exec(ltree[], ltxtquery) OWNER TO postgres;
@@ -389,8 +417,8 @@ ALTER FUNCTION public._ltxtq_exec(ltree[], ltxtquery) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltxtq_extract_exec(ltree[], ltxtquery) RETURNS ltree
-    AS '$libdir/ltree', '_ltxtq_extract_exec'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltxtq_extract_exec';
 
 
 ALTER FUNCTION public._ltxtq_extract_exec(ltree[], ltxtquery) OWNER TO postgres;
@@ -400,8 +428,8 @@ ALTER FUNCTION public._ltxtq_extract_exec(ltree[], ltxtquery) OWNER TO postgres;
 --
 
 CREATE FUNCTION _ltxtq_rexec(ltxtquery, ltree[]) RETURNS boolean
-    AS '$libdir/ltree', '_ltxtq_rexec'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_ltxtq_rexec';
 
 
 ALTER FUNCTION public._ltxtq_rexec(ltxtquery, ltree[]) OWNER TO postgres;
@@ -411,8 +439,8 @@ ALTER FUNCTION public._ltxtq_rexec(ltxtquery, ltree[]) OWNER TO postgres;
 --
 
 CREATE FUNCTION index(ltree, ltree) RETURNS integer
-    AS '$libdir/ltree', 'ltree_index'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_index';
 
 
 ALTER FUNCTION public.index(ltree, ltree) OWNER TO postgres;
@@ -422,8 +450,8 @@ ALTER FUNCTION public.index(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION index(ltree, ltree, integer) RETURNS integer
-    AS '$libdir/ltree', 'ltree_index'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_index';
 
 
 ALTER FUNCTION public.index(ltree, ltree, integer) OWNER TO postgres;
@@ -433,8 +461,8 @@ ALTER FUNCTION public.index(ltree, ltree, integer) OWNER TO postgres;
 --
 
 CREATE FUNCTION lca(ltree[]) RETURNS ltree
-    AS '$libdir/ltree', '_lca'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', '_lca';
 
 
 ALTER FUNCTION public.lca(ltree[]) OWNER TO postgres;
@@ -444,8 +472,8 @@ ALTER FUNCTION public.lca(ltree[]) OWNER TO postgres;
 --
 
 CREATE FUNCTION lca(ltree, ltree) RETURNS ltree
-    AS '$libdir/ltree', 'lca'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'lca';
 
 
 ALTER FUNCTION public.lca(ltree, ltree) OWNER TO postgres;
@@ -455,8 +483,8 @@ ALTER FUNCTION public.lca(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION lca(ltree, ltree, ltree) RETURNS ltree
-    AS '$libdir/ltree', 'lca'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'lca';
 
 
 ALTER FUNCTION public.lca(ltree, ltree, ltree) OWNER TO postgres;
@@ -466,8 +494,8 @@ ALTER FUNCTION public.lca(ltree, ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION lca(ltree, ltree, ltree, ltree) RETURNS ltree
-    AS '$libdir/ltree', 'lca'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'lca';
 
 
 ALTER FUNCTION public.lca(ltree, ltree, ltree, ltree) OWNER TO postgres;
@@ -477,8 +505,8 @@ ALTER FUNCTION public.lca(ltree, ltree, ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION lca(ltree, ltree, ltree, ltree, ltree) RETURNS ltree
-    AS '$libdir/ltree', 'lca'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'lca';
 
 
 ALTER FUNCTION public.lca(ltree, ltree, ltree, ltree, ltree) OWNER TO postgres;
@@ -488,8 +516,8 @@ ALTER FUNCTION public.lca(ltree, ltree, ltree, ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION lca(ltree, ltree, ltree, ltree, ltree, ltree) RETURNS ltree
-    AS '$libdir/ltree', 'lca'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'lca';
 
 
 ALTER FUNCTION public.lca(ltree, ltree, ltree, ltree, ltree, ltree) OWNER TO postgres;
@@ -499,8 +527,8 @@ ALTER FUNCTION public.lca(ltree, ltree, ltree, ltree, ltree, ltree) OWNER TO pos
 --
 
 CREATE FUNCTION lca(ltree, ltree, ltree, ltree, ltree, ltree, ltree) RETURNS ltree
-    AS '$libdir/ltree', 'lca'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'lca';
 
 
 ALTER FUNCTION public.lca(ltree, ltree, ltree, ltree, ltree, ltree, ltree) OWNER TO postgres;
@@ -510,8 +538,8 @@ ALTER FUNCTION public.lca(ltree, ltree, ltree, ltree, ltree, ltree, ltree) OWNER
 --
 
 CREATE FUNCTION lca(ltree, ltree, ltree, ltree, ltree, ltree, ltree, ltree) RETURNS ltree
-    AS '$libdir/ltree', 'lca'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'lca';
 
 
 ALTER FUNCTION public.lca(ltree, ltree, ltree, ltree, ltree, ltree, ltree, ltree) OWNER TO postgres;
@@ -521,8 +549,8 @@ ALTER FUNCTION public.lca(ltree, ltree, ltree, ltree, ltree, ltree, ltree, ltree
 --
 
 CREATE FUNCTION lt_q_regex(ltree, lquery[]) RETURNS boolean
-    AS '$libdir/ltree', 'lt_q_regex'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'lt_q_regex';
 
 
 ALTER FUNCTION public.lt_q_regex(ltree, lquery[]) OWNER TO postgres;
@@ -532,8 +560,8 @@ ALTER FUNCTION public.lt_q_regex(ltree, lquery[]) OWNER TO postgres;
 --
 
 CREATE FUNCTION lt_q_rregex(lquery[], ltree) RETURNS boolean
-    AS '$libdir/ltree', 'lt_q_rregex'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'lt_q_rregex';
 
 
 ALTER FUNCTION public.lt_q_rregex(lquery[], ltree) OWNER TO postgres;
@@ -543,8 +571,8 @@ ALTER FUNCTION public.lt_q_rregex(lquery[], ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltq_regex(ltree, lquery) RETURNS boolean
-    AS '$libdir/ltree', 'ltq_regex'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltq_regex';
 
 
 ALTER FUNCTION public.ltq_regex(ltree, lquery) OWNER TO postgres;
@@ -554,8 +582,8 @@ ALTER FUNCTION public.ltq_regex(ltree, lquery) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltq_rregex(lquery, ltree) RETURNS boolean
-    AS '$libdir/ltree', 'ltq_rregex'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltq_rregex';
 
 
 ALTER FUNCTION public.ltq_rregex(lquery, ltree) OWNER TO postgres;
@@ -565,8 +593,8 @@ ALTER FUNCTION public.ltq_rregex(lquery, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree2text(ltree) RETURNS text
-    AS '$libdir/ltree', 'ltree2text'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree2text';
 
 
 ALTER FUNCTION public.ltree2text(ltree) OWNER TO postgres;
@@ -576,8 +604,8 @@ ALTER FUNCTION public.ltree2text(ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_addltree(ltree, ltree) RETURNS ltree
-    AS '$libdir/ltree', 'ltree_addltree'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_addltree';
 
 
 ALTER FUNCTION public.ltree_addltree(ltree, ltree) OWNER TO postgres;
@@ -587,8 +615,8 @@ ALTER FUNCTION public.ltree_addltree(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_addtext(ltree, text) RETURNS ltree
-    AS '$libdir/ltree', 'ltree_addtext'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_addtext';
 
 
 ALTER FUNCTION public.ltree_addtext(ltree, text) OWNER TO postgres;
@@ -598,8 +626,8 @@ ALTER FUNCTION public.ltree_addtext(ltree, text) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_cmp(ltree, ltree) RETURNS integer
-    AS '$libdir/ltree', 'ltree_cmp'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_cmp';
 
 
 ALTER FUNCTION public.ltree_cmp(ltree, ltree) OWNER TO postgres;
@@ -609,8 +637,8 @@ ALTER FUNCTION public.ltree_cmp(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_compress(internal) RETURNS internal
-    AS '$libdir/ltree', 'ltree_compress'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', 'ltree_compress';
 
 
 ALTER FUNCTION public.ltree_compress(internal) OWNER TO postgres;
@@ -620,8 +648,8 @@ ALTER FUNCTION public.ltree_compress(internal) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_consistent(internal, internal, smallint) RETURNS boolean
-    AS '$libdir/ltree', 'ltree_consistent'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', 'ltree_consistent';
 
 
 ALTER FUNCTION public.ltree_consistent(internal, internal, smallint) OWNER TO postgres;
@@ -631,8 +659,8 @@ ALTER FUNCTION public.ltree_consistent(internal, internal, smallint) OWNER TO po
 --
 
 CREATE FUNCTION ltree_decompress(internal) RETURNS internal
-    AS '$libdir/ltree', 'ltree_decompress'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', 'ltree_decompress';
 
 
 ALTER FUNCTION public.ltree_decompress(internal) OWNER TO postgres;
@@ -642,8 +670,8 @@ ALTER FUNCTION public.ltree_decompress(internal) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_eq(ltree, ltree) RETURNS boolean
-    AS '$libdir/ltree', 'ltree_eq'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_eq';
 
 
 ALTER FUNCTION public.ltree_eq(ltree, ltree) OWNER TO postgres;
@@ -653,8 +681,8 @@ ALTER FUNCTION public.ltree_eq(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_ge(ltree, ltree) RETURNS boolean
-    AS '$libdir/ltree', 'ltree_ge'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_ge';
 
 
 ALTER FUNCTION public.ltree_ge(ltree, ltree) OWNER TO postgres;
@@ -664,8 +692,8 @@ ALTER FUNCTION public.ltree_ge(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_gt(ltree, ltree) RETURNS boolean
-    AS '$libdir/ltree', 'ltree_gt'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_gt';
 
 
 ALTER FUNCTION public.ltree_gt(ltree, ltree) OWNER TO postgres;
@@ -675,8 +703,8 @@ ALTER FUNCTION public.ltree_gt(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_isparent(ltree, ltree) RETURNS boolean
-    AS '$libdir/ltree', 'ltree_isparent'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_isparent';
 
 
 ALTER FUNCTION public.ltree_isparent(ltree, ltree) OWNER TO postgres;
@@ -686,8 +714,8 @@ ALTER FUNCTION public.ltree_isparent(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_le(ltree, ltree) RETURNS boolean
-    AS '$libdir/ltree', 'ltree_le'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_le';
 
 
 ALTER FUNCTION public.ltree_le(ltree, ltree) OWNER TO postgres;
@@ -697,8 +725,8 @@ ALTER FUNCTION public.ltree_le(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_lt(ltree, ltree) RETURNS boolean
-    AS '$libdir/ltree', 'ltree_lt'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_lt';
 
 
 ALTER FUNCTION public.ltree_lt(ltree, ltree) OWNER TO postgres;
@@ -708,8 +736,8 @@ ALTER FUNCTION public.ltree_lt(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_ne(ltree, ltree) RETURNS boolean
-    AS '$libdir/ltree', 'ltree_ne'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_ne';
 
 
 ALTER FUNCTION public.ltree_ne(ltree, ltree) OWNER TO postgres;
@@ -719,8 +747,8 @@ ALTER FUNCTION public.ltree_ne(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_penalty(internal, internal, internal) RETURNS internal
-    AS '$libdir/ltree', 'ltree_penalty'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_penalty';
 
 
 ALTER FUNCTION public.ltree_penalty(internal, internal, internal) OWNER TO postgres;
@@ -730,8 +758,8 @@ ALTER FUNCTION public.ltree_penalty(internal, internal, internal) OWNER TO postg
 --
 
 CREATE FUNCTION ltree_picksplit(internal, internal) RETURNS internal
-    AS '$libdir/ltree', 'ltree_picksplit'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', 'ltree_picksplit';
 
 
 ALTER FUNCTION public.ltree_picksplit(internal, internal) OWNER TO postgres;
@@ -741,8 +769,8 @@ ALTER FUNCTION public.ltree_picksplit(internal, internal) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_risparent(ltree, ltree) RETURNS boolean
-    AS '$libdir/ltree', 'ltree_risparent'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_risparent';
 
 
 ALTER FUNCTION public.ltree_risparent(ltree, ltree) OWNER TO postgres;
@@ -752,8 +780,8 @@ ALTER FUNCTION public.ltree_risparent(ltree, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_same(internal, internal, internal) RETURNS internal
-    AS '$libdir/ltree', 'ltree_same'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', 'ltree_same';
 
 
 ALTER FUNCTION public.ltree_same(internal, internal, internal) OWNER TO postgres;
@@ -763,8 +791,8 @@ ALTER FUNCTION public.ltree_same(internal, internal, internal) OWNER TO postgres
 --
 
 CREATE FUNCTION ltree_textadd(text, ltree) RETURNS ltree
-    AS '$libdir/ltree', 'ltree_textadd'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltree_textadd';
 
 
 ALTER FUNCTION public.ltree_textadd(text, ltree) OWNER TO postgres;
@@ -774,8 +802,8 @@ ALTER FUNCTION public.ltree_textadd(text, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltree_union(internal, internal) RETURNS integer
-    AS '$libdir/ltree', 'ltree_union'
-    LANGUAGE c IMMUTABLE;
+    LANGUAGE c IMMUTABLE
+    AS '$libdir/ltree', 'ltree_union';
 
 
 ALTER FUNCTION public.ltree_union(internal, internal) OWNER TO postgres;
@@ -785,8 +813,8 @@ ALTER FUNCTION public.ltree_union(internal, internal) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltreeparentsel(internal, oid, internal, integer) RETURNS double precision
-    AS '$libdir/ltree', 'ltreeparentsel'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltreeparentsel';
 
 
 ALTER FUNCTION public.ltreeparentsel(internal, oid, internal, integer) OWNER TO postgres;
@@ -796,8 +824,8 @@ ALTER FUNCTION public.ltreeparentsel(internal, oid, internal, integer) OWNER TO 
 --
 
 CREATE FUNCTION ltxtq_exec(ltree, ltxtquery) RETURNS boolean
-    AS '$libdir/ltree', 'ltxtq_exec'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltxtq_exec';
 
 
 ALTER FUNCTION public.ltxtq_exec(ltree, ltxtquery) OWNER TO postgres;
@@ -807,8 +835,8 @@ ALTER FUNCTION public.ltxtq_exec(ltree, ltxtquery) OWNER TO postgres;
 --
 
 CREATE FUNCTION ltxtq_rexec(ltxtquery, ltree) RETURNS boolean
-    AS '$libdir/ltree', 'ltxtq_rexec'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'ltxtq_rexec';
 
 
 ALTER FUNCTION public.ltxtq_rexec(ltxtquery, ltree) OWNER TO postgres;
@@ -818,8 +846,8 @@ ALTER FUNCTION public.ltxtq_rexec(ltxtquery, ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION nlevel(ltree) RETURNS integer
-    AS '$libdir/ltree', 'nlevel'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'nlevel';
 
 
 ALTER FUNCTION public.nlevel(ltree) OWNER TO postgres;
@@ -829,41 +857,41 @@ ALTER FUNCTION public.nlevel(ltree) OWNER TO postgres;
 --
 
 CREATE FUNCTION subltree(ltree, integer, integer) RETURNS ltree
-    AS '$libdir/ltree', 'subltree'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'subltree';
 
 
 ALTER FUNCTION public.subltree(ltree, integer, integer) OWNER TO postgres;
-
---
--- Name: subpath(ltree, integer, integer); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION subpath(ltree, integer, integer) RETURNS ltree
-    AS '$libdir/ltree', 'subpath'
-    LANGUAGE c IMMUTABLE STRICT;
-
-
-ALTER FUNCTION public.subpath(ltree, integer, integer) OWNER TO postgres;
 
 --
 -- Name: subpath(ltree, integer); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
 CREATE FUNCTION subpath(ltree, integer) RETURNS ltree
-    AS '$libdir/ltree', 'subpath'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'subpath';
 
 
 ALTER FUNCTION public.subpath(ltree, integer) OWNER TO postgres;
+
+--
+-- Name: subpath(ltree, integer, integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION subpath(ltree, integer, integer) RETURNS ltree
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'subpath';
+
+
+ALTER FUNCTION public.subpath(ltree, integer, integer) OWNER TO postgres;
 
 --
 -- Name: text2ltree(text); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
 CREATE FUNCTION text2ltree(text) RETURNS ltree
-    AS '$libdir/ltree', 'text2ltree'
-    LANGUAGE c IMMUTABLE STRICT;
+    LANGUAGE c IMMUTABLE STRICT
+    AS '$libdir/ltree', 'text2ltree';
 
 
 ALTER FUNCTION public.text2ltree(text) OWNER TO postgres;
@@ -1645,14 +1673,14 @@ ALTER OPERATOR public.~ (ltree[], lquery) OWNER TO postgres;
 CREATE OPERATOR CLASS gist__ltree_ops
     DEFAULT FOR TYPE ltree[] USING gist AS
     STORAGE ltree_gist ,
-    OPERATOR 10 <@(ltree[],ltree) RECHECK ,
-    OPERATOR 11 @>(ltree,ltree[]) RECHECK ,
-    OPERATOR 12 ~(ltree[],lquery) RECHECK ,
-    OPERATOR 13 ~(lquery,ltree[]) RECHECK ,
-    OPERATOR 14 @(ltree[],ltxtquery) RECHECK ,
-    OPERATOR 15 @(ltxtquery,ltree[]) RECHECK ,
-    OPERATOR 16 ?(ltree[],lquery[]) RECHECK ,
-    OPERATOR 17 ?(lquery[],ltree[]) RECHECK ,
+    OPERATOR 10 <@(ltree[],ltree) ,
+    OPERATOR 11 @>(ltree,ltree[]) ,
+    OPERATOR 12 ~(ltree[],lquery) ,
+    OPERATOR 13 ~(lquery,ltree[]) ,
+    OPERATOR 14 @(ltree[],ltxtquery) ,
+    OPERATOR 15 @(ltxtquery,ltree[]) ,
+    OPERATOR 16 ?(ltree[],lquery[]) ,
+    OPERATOR 17 ?(lquery[],ltree[]) ,
     FUNCTION 1 _ltree_consistent(internal,internal,smallint) ,
     FUNCTION 2 _ltree_union(internal,internal) ,
     FUNCTION 3 _ltree_compress(internal) ,
@@ -1764,6 +1792,18 @@ CREATE TABLE node_has_tag (
 ALTER TABLE public.node_has_tag OWNER TO filemeta;
 
 --
+-- Name: node_meta; Type: TABLE; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+CREATE TABLE node_meta (
+    md5 character(32) NOT NULL,
+    metadata hstore
+);
+
+
+ALTER TABLE public.node_meta OWNER TO filemeta;
+
+--
 -- Name: query; Type: TABLE; Schema: public; Owner: filemeta; Tablespace: 
 --
 
@@ -1815,6 +1855,14 @@ ALTER TABLE public.tag_in_tag_group OWNER TO filemeta;
 
 ALTER TABLE ONLY acknowledged_duplicates
     ADD CONSTRAINT acknowledged_duplicates_pkey PRIMARY KEY (md5);
+
+
+--
+-- Name: node_meta_pkey; Type: CONSTRAINT; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+ALTER TABLE ONLY node_meta
+    ADD CONSTRAINT node_meta_pkey PRIMARY KEY (md5);
 
 
 --
@@ -1874,10 +1922,38 @@ ALTER TABLE ONLY node
 
 
 --
+-- Name: node_has_tag_tag; Type: INDEX; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+CREATE INDEX node_has_tag_tag ON node_has_tag USING btree (tag);
+
+
+--
 -- Name: node_path; Type: INDEX; Schema: public; Owner: filemeta; Tablespace: 
 --
 
 CREATE UNIQUE INDEX node_path ON node USING btree (path);
+
+
+--
+-- Name: node_rating; Type: INDEX; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+CREATE INDEX node_rating ON node USING btree (rating);
+
+
+--
+-- Name: noe_has_tag_md5; Type: INDEX; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+CREATE INDEX noe_has_tag_md5 ON node_has_tag USING btree (md5);
+
+
+--
+-- Name: path_idx; Type: INDEX; Schema: public; Owner: filemeta; Tablespace: 
+--
+
+CREATE INDEX path_idx ON node USING gist (path);
 
 
 --

@@ -9,14 +9,15 @@ from sqlalchemy import (
           UniqueConstraint,
           select,
           func,
-          and_,
           or_,
           bindparam,
           text,
           not_)
 from sqlalchemy.orm import mapper, relation
 from sqlalchemy.sql import distinct
+from sqlalchemy.exc import IntegrityError
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
+from metafilter.model.hstore_type import HStore, HStoreColumn
 from metafilter.model.queries import Query, query_table
 from metafilter.model.tags import Tag, node_has_tag_table, tag_in_tag_group_table
 from os.path import basename, exists, dirname, split
@@ -44,6 +45,11 @@ nodes_table = Table('node', metadata,
     Column('to_purge', Boolean, default=False),
     Column('rating', Integer, default=0),
     UniqueConstraint('uri', name='unique_uri')
+)
+
+node_meta_table = Table('node_meta', metadata,
+    Column('md5', String(32), primary_key=True),
+    HStoreColumn('metadata', HStore())
 )
 
 acknowledged_duplicates_table = Table('acknowledged_duplicates', metadata,
@@ -80,6 +86,32 @@ def by_path(session, path):
     qry = session.query(Node)
     qry = qry.filter( Node.path == path )
     return qry.first()
+
+def add_sparse_metadata(node):
+    """
+    Adds additional metadata into the HSTORE table
+    """
+    import Image
+    if node.mimetype in ('image/jpeg', ):
+        im = Image.open(node.uri)
+        md5 = file_md5(node.uri)
+        aspect_ratio = "%.3f" % (float(im.size[0]) / float(im.size[1]))
+        values = dict(
+            md5 = md5,
+            metadata = dict(
+                dimensions = "%s, %s" % im.size,
+                aspect_ratio = aspect_ratio,
+                ))
+        try:
+            ins = node_meta_table.insert().values(
+                    **values
+                    )
+            ins.execute()
+        except IntegrityError:
+            upd = node_meta_table.update().where(
+                    node_meta_table.c.md5 == md5).values(
+                            **values)
+            upd.execute()
 
 def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail = False, auto_tag_words=[]):
     import os
@@ -140,6 +172,7 @@ def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail
             try:
                 detached_file = Node(unipath)
                 detached_file.mimetype = mimetype
+                add_sparse_metadata(detached_file)
                 detached_file.created = create_time
                 detached_file.updated = mod_time
 
