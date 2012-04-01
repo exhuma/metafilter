@@ -6,6 +6,7 @@ from sqlalchemy import (
           String,
           DateTime,
           Boolean,
+          Numeric,
           UniqueConstraint,
           select,
           func,
@@ -14,7 +15,7 @@ from sqlalchemy import (
           text,
           not_)
 from sqlalchemy.orm import mapper, relation
-from sqlalchemy.sql import distinct
+from sqlalchemy.sql import distinct, cast
 from sqlalchemy.exc import IntegrityError
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from metafilter.model.hstore_type import HStore, HStoreColumn
@@ -404,8 +405,6 @@ def tagged(sess, stmt, parent_uri, nodes):
     disjunction. MRO: conjuction -> disjunction
     """
 
-    query_string = 'tag/%s' % str.join('/', nodes)
-
     tag_string = nodes.pop(0)
 
     LOG.debug("Finding entries using tag string %s in %r" % (tag_string, parent_uri))
@@ -419,7 +418,6 @@ def tagged(sess, stmt, parent_uri, nodes):
     tag_offset = 0
     for conjunction in tagspec:
         # complicated stuff to prevent SQL injections...
-        template = 'ARRAY[%s]'
         placeholders = ', '.join([':tag_%d' % _ for _ in range(tag_offset,
             tag_offset+len(conjunction))])
         sql = text('ARRAY[%s]' % placeholders, bindparams=[
@@ -434,6 +432,81 @@ def tagged(sess, stmt, parent_uri, nodes):
     subq = subq.where(Tag.name.in_(flat_tags))
     subq = subq.group_by(node_has_tag_table.c.md5)
     subq = subq.having(or_(*disjunctions))
+
+    stmt = stmt.filter(Node.md5.in_(subq))
+
+    return stmt
+
+def aspect(stmt, parent_uri, nodes):
+    """
+    Find all image nodes with the specified aspect ratio.
+
+    Query parameters:
+
+        op - Operator (string). One of:
+            gt = Greater Than (>)
+            lt = Less than (<)
+            ge = greater than or equals (>=)
+            le = less than or equals (<=)
+            eq = equals (==)
+            ne = not equals (!=)
+        value - Aspect ratio (float)
+    """
+
+    op = nodes.pop(0)
+    value = float(nodes.pop(0))
+
+    subq = select([node_meta_table.c.md5])
+    if op == 'gt':
+        subq = subq.where(
+                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                    Numeric(4,3)) > value)
+    elif op == 'ge':
+        subq = subq.where(
+                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                    Numeric(4,3)) >= value)
+    elif op == 'lt':
+        subq = subq.where(
+                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                    Numeric(4,3)) < value)
+    elif op == 'le':
+        subq = subq.where(
+                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                    Numeric(4,3)) <= value)
+    elif op == 'eq':
+        subq = subq.where(
+                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                    Numeric(4,3)) == value)
+    elif op == 'ne':
+        subq = subq.where(
+                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                    Numeric(4,3)) != value)
+
+    stmt = stmt.filter(Node.md5.in_(subq))
+
+    return stmt
+
+def aspect_range(stmt, parent_uri, nodes):
+    """
+    Find all image nodes having an aspect ratio between two values
+
+    Query parameters:
+
+        value_min - Aspect ratio (float)
+        value_max - Aspect ratio (float)
+    """
+
+
+    value_min = float(nodes.pop(0))
+    value_max = float(nodes.pop(0))
+
+    subq = select([node_meta_table.c.md5])
+    subq = subq.where(
+        cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+            Numeric(4,3)) >= value_min)
+    subq = subq.where(
+        cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+            Numeric(4,3)) <= value_max)
 
     stmt = stmt.filter(Node.md5.in_(subq))
 
@@ -488,6 +561,12 @@ def expected_params(query_types):
     for type in query_types:
 
         if type == 'rating':
+            num += 2
+
+        if type == 'aspect':
+            num += 2
+
+        if type == 'aspect_range':
             num += 2
 
         if type == 'in_path':
@@ -565,6 +644,12 @@ def subdirs(sess, query):
 
         if query_type == 'rating':
             stmt = rated(stmt, parent_uri, query_nodes)
+
+        if query_type == 'aspect_range':
+            stmt = aspect_range(stmt, parent_uri, query_nodes)
+
+        if query_type == 'aspect':
+            stmt = aspect(stmt, parent_uri, query_nodes)
 
         if query_type == 'md5':
             stmt = has_md5(stmt, parent_uri, query_nodes)
@@ -677,6 +762,12 @@ def from_incremental_query(sess, query):
 
         if query_type == 'rating':
             stmt = rated(stmt, parent_uri, query_nodes)
+
+        if query_type == 'aspect':
+            stmt = aspect(stmt, parent_uri, query_nodes)
+
+        if query_type == 'aspect_range':
+            stmt = aspect_range(stmt, parent_uri, query_nodes)
 
         if query_type == 'md5':
             stmt = has_md5(stmt, parent_uri, query_nodes)
