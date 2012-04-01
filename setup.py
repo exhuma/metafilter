@@ -3,7 +3,7 @@ setup(
    name = "metafilter",
    version = "0.1",
    packages = find_packages(),
-   scripts = ['metafilter/webserve.py', 'metafilter/rescan_folder.py',
+   scripts = ['metafilter/webserve.py', 'metafilter/rescan_query.py', 'metafilter/rescan_folder.py',
        'metafilter/metafilterfs.py'],
    install_requires = [
       'parsedatetime',

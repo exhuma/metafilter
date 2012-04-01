@@ -36,6 +36,7 @@ def query(query="root"):
     result = nodes.subdirs(g.sess, query)
     if not result:
         result = []
+
     result += nodes.from_incremental_query(g.sess, query)
 
     try:

@@ -114,11 +114,91 @@ def add_sparse_metadata(node):
                             **values)
             upd.execute()
 
-def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail = False, auto_tag_words=[]):
-    import os
+def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
+    from os.path import isfile, join
     import mimetypes
     mimetypes.init()
-    from os.path import isfile, join, abspath
+    if not isfile(path):
+        LOG.warning("Not a regular file: %r" % path)
+        return
+
+    if file == 'tag.hints':
+        LOG.debug('Skipping tag.hints file')
+        return
+
+    mod_time = max(
+            datetime.fromtimestamp(os.stat(path).st_mtime),
+            datetime.fromtimestamp(os.stat(path).st_ctime)
+            )
+    create_time = datetime.fromtimestamp(os.stat(path).st_ctime)
+
+    mimetype, _ = mimetypes.guess_type(path)
+
+    auto_tags = set([])
+    unipath = path.decode(getfilesystemencoding())
+    if auto_tag_folder_tail:
+        tailname = split(dirname(unipath))[-1]
+        if tailname and len(tailname) > TAIL_DIR_THRESHOLD:
+            auto_tags.add(tailname)
+        else:
+            LOG.warning("Not using %r as auto-tag-name. Either it's empty or too short", tailname)
+
+    if auto_tag_words:
+        for word in auto_tag_words:
+            if word.lower() in [x.lower() for x in splitpath(dirname(unipath))]:
+                auto_tags.add(word)
+
+    try:
+        detached_file = Node(unipath)
+        detached_file.mimetype = mimetype
+        add_sparse_metadata(detached_file)
+        detached_file.created = create_time
+        detached_file.updated = mod_time
+
+        # process "tag.hints"
+        #
+        # the file contains a comma-separated list of tags applied to
+        # all files in this folder
+        #
+        # If a line contains '::' the tags only apply to the filename
+        # given before the '::' separator. Example:
+        #
+        # thefile.txt::documentation, project a, draft
+        attached_file = sess.merge(detached_file)
+        unidir = dirname(unipath)
+        hints_file = join(unidir, 'tag.hints')
+        if exists(hints_file):
+            for line in open(hints_file).readlines():
+                if not '::' in line:
+                    hint_tags = [_.strip() for _ in line.split(',')]
+                    for tag in hint_tags:
+                        auto_tags.add(tag)
+                else:
+                    filename, tags = line.split('::')
+                    if file == filename.strip():
+                        hint_tags = [_.strip() for _ in tags.split(',')]
+                        for tag in hint_tags:
+                            auto_tags.add(tag)
+
+        if auto_tags:
+            set_tags(sess, attached_file, auto_tags, False)
+        sess.add(attached_file)
+        sess.commit()
+        LOG.info("Added %s with tags %r" % (attached_file, auto_tags))
+    except Exception, exc:
+        LOG.error("%r: %s" % (path, exc))
+        sess.rollback()
+
+def update_nodes_from_query(sess, query, oldest_refresh=None, auto_tag_folder_tail=False, auto_tag_words=[]):
+    if not query.endswith('__flat__'):
+        query += '/__flat__'
+
+    for node in from_incremental_query(sess, query):
+        update_one_node(sess, node.uri, auto_tag_folder_tail, auto_tag_words)
+
+def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail=False, auto_tag_words=[]):
+    import os
+    from os.path import join, abspath
 
     root_ltree = uri_to_ltree(root)
     if not oldest_refresh:
@@ -136,81 +216,18 @@ def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail
         scanned_files = 0
         for file in files:
             path = abspath(join(root, file))
-            if not isfile(path):
-                LOG.warning("Not a regular file: %r" % path)
-                continue
-
-            if file == 'tag.hints':
-                LOG.debug('Skipping tag.hints file')
-                continue
+            update_one_node(sess, path, auto_tag_folder_tail, auto_tag_words)
+            scanned_files += 1
 
             mod_time = max(
                     datetime.fromtimestamp(os.stat(path).st_mtime),
                     datetime.fromtimestamp(os.stat(path).st_ctime)
                     )
-            create_time = datetime.fromtimestamp(os.stat(path).st_ctime)
 
             # ignore files which have not been modified since last scan
             if oldest_refresh and mod_time < oldest_refresh:
                 continue
 
-            mimetype, _ = mimetypes.guess_type(path)
-
-            auto_tags = set([])
-            unipath = path.decode(getfilesystemencoding())
-            if auto_tag_folder_tail:
-                tailname = split(dirname(unipath))[-1]
-                if tailname and len(tailname) > TAIL_DIR_THRESHOLD:
-                    auto_tags.add(tailname)
-                else:
-                    LOG.warning("Not using %r as auto-tag-name. Either it's empty or too short", tailname)
-
-            if auto_tag_words:
-                for word in auto_tag_words:
-                    if word.lower() in [x.lower() for x in splitpath(dirname(unipath))]:
-                        auto_tags.add(word)
-
-            try:
-                detached_file = Node(unipath)
-                detached_file.mimetype = mimetype
-                add_sparse_metadata(detached_file)
-                detached_file.created = create_time
-                detached_file.updated = mod_time
-
-                # process "tag.hints"
-                #
-                # the file contains a comma-separated list of tags applied to
-                # all files in this folder
-                #
-                # If a line contains '::' the tags only apply to the filename
-                # given before the '::' separator. Example:
-                #
-                # thefile.txt::documentation, project a, draft
-                attached_file = sess.merge(detached_file)
-                unidir = dirname(unipath)
-                hints_file = join(unidir, 'tag.hints')
-                if exists(hints_file):
-                    for line in open(hints_file).readlines():
-                        if not '::' in line:
-                            hint_tags = [_.strip() for _ in line.split(',')]
-                            for tag in hint_tags:
-                                auto_tags.add(tag)
-                        else:
-                            filename, tags = line.split('::')
-                            if file == filename.strip():
-                                hint_tags = [_.strip() for _ in tags.split(',')]
-                                for tag in hint_tags:
-                                    auto_tags.add(tag)
-
-                if auto_tags:
-                    set_tags(sess, attached_file, auto_tags, False)
-                sess.add(attached_file)
-                sess.commit()
-                LOG.info("Added %s with tags %r" % (attached_file, auto_tags))
-            except Exception, exc:
-                LOG.error("%r: %s" % (path, exc))
-                sess.rollback()
-            scanned_files += 1
 
         if scanned_files > 0:
             LOG.info("commit")
@@ -728,7 +745,7 @@ def from_incremental_query(sess, query):
 
     num_params = expected_params(query_types)
     if not query_nodes or len(query_nodes) < num_params:
-        # no details known yet. Find appropriate queries
+        # no all query parmeters known yet. Find appropriate queries
         output = []
         stmt = sess.query(Query.query)
         LOG.debug('Listing nodes starting with %r' % query)
@@ -780,6 +797,8 @@ def from_incremental_query(sess, query):
 
         if query_type == 'tag_group':
             stmt = in_tag_group(sess, stmt, parent_uri, query_nodes)
+
+    print stmt
 
     if not flatten:
         stmt = stmt.subquery()
