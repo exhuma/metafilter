@@ -492,27 +492,27 @@ def aspect(stmt, parent_uri, nodes):
     if op == 'gt':
         subq = subq.where(
                 cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(4,3)) > value)
+                    Numeric(7,3)) > value)
     elif op == 'ge':
         subq = subq.where(
                 cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(4,3)) >= value)
+                    Numeric(7,3)) >= value)
     elif op == 'lt':
         subq = subq.where(
                 cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(4,3)) < value)
+                    Numeric(7,3)) < value)
     elif op == 'le':
         subq = subq.where(
                 cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(4,3)) <= value)
+                    Numeric(7,3)) <= value)
     elif op == 'eq':
         subq = subq.where(
                 cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(4,3)) == value)
+                    Numeric(7,3)) == value)
     elif op == 'ne':
         subq = subq.where(
                 cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(4,3)) != value)
+                    Numeric(7,3)) != value)
 
     stmt = stmt.filter(Node.md5.in_(subq))
 
@@ -535,10 +535,10 @@ def aspect_range(stmt, parent_uri, nodes):
     subq = select([node_meta_table.c.md5])
     subq = subq.where(
         cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-            Numeric(4,3)) >= value_min)
+            Numeric(7,3)) >= value_min)
     subq = subq.where(
         cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-            Numeric(4,3)) <= value_max)
+            Numeric(7,3)) <= value_max)
 
     stmt = stmt.filter(Node.md5.in_(subq))
 
