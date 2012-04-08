@@ -357,12 +357,28 @@ def rated(stmt, parent_uri, nodes):
     return stmt
 
 def mimetype(stmt, parent_uri, nodes):
+    """
+    Filter by mime type
+    """
 
     mimetype_major = nodes.pop(0)
     mimetype_minor = nodes.pop(0)
     mimetype = '%s/%s' % (mimetype_major, mimetype_minor)
 
     stmt = stmt.filter(Node.mimetype == mimetype)
+
+    return stmt
+
+def major_mimetype(stmt, parent_uri, nodes):
+    """
+    Filter by major mime type (the part before the slash)
+    """
+
+    mimetype_major = nodes.pop(0)
+    #TODO# SQL Injection possible right here!
+    mimetype = '%s/%%' % (mimetype_major,)
+
+    stmt = stmt.filter(Node.mimetype.like(mimetype))
 
     return stmt
 
@@ -592,6 +608,9 @@ def expected_params(query_types):
 
     for type in query_types:
 
+        if type == 'major_mimetype':
+            num += 1
+
         if type == 'mimetype':
             num += 2
 
@@ -679,6 +698,9 @@ def subdirs(sess, query):
 
         if query_type == 'rating':
             stmt = rated(stmt, parent_uri, query_nodes)
+
+        if query_type == 'major_mimetype':
+            stmt = major_mimetype(stmt, parent_uri, query_nodes)
 
         if query_type == 'mimetype':
             stmt = mimetype(stmt, parent_uri, query_nodes)
@@ -797,6 +819,9 @@ def from_incremental_query(sess, query):
     for query_type in query_types:
         if query_type == 'date':
             stmt = dated(sess, stmt, parent_uri, query_nodes)
+
+        if query_type == 'major_mimetype':
+            stmt = major_mimetype(stmt, parent_uri, query_nodes)
 
         if query_type == 'mimetype':
             stmt = mimetype(stmt, parent_uri, query_nodes)
