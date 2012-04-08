@@ -140,7 +140,10 @@ def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
     mimetype, _ = mimetypes.guess_type(path)
 
     auto_tags = set([])
-    unipath = path.decode(getfilesystemencoding())
+    try:
+        unipath = path.decode(getfilesystemencoding())
+    except UnicodeEncodeError, exc:
+        LOG.error('Unable to encode %r using %s' % (path, getfilesystemencoding()))
     if auto_tag_folder_tail:
         tailname = split(dirname(unipath))[-1]
         if tailname and len(tailname) > TAIL_DIR_THRESHOLD:
