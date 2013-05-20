@@ -166,8 +166,8 @@ def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
 
     db_node = sess.query(Node).filter_by(uri=unipath).first()
     if not db_node:
-        LOG.info("New node: %s" % (db_node, ))
         db_node = Node(unipath)
+        LOG.info("New node: %s" % (db_node, ))
     db_node.mimetype = mimetype
     add_sparse_metadata(db_node)
     db_node.created = create_time
@@ -286,17 +286,14 @@ def set_tags(sess, uri, new_tags, purge=True):
             if tag.name not in new_tags:
                 node.tags.remove(tag)
 
-    for tag in new_tags:
+    for tag_word in new_tags:
+        tag = Tag.find(sess, tag_word)
+        if not tag:
+            tag = Tag(tag_word)
         if tag not in node.tags:
-            tmp = Tag.find(sess, tag)
-            if not tmp:
-                tmp = Tag(tag)
             if not node.md5:
                 node.md5 = file_md5(node.uri)
-            node.tags.append(tmp)
-
-    sess.merge(node)
-    sess.flush()
+            node.tags.append(tag)
 
 def remove_empty_dirs(sess, root):
     root_ltree = uri_to_ltree(root)
