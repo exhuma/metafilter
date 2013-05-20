@@ -222,4 +222,4 @@ if __name__ == "__main__":
     app.debug = True
     logging.basicConfig(level=logging.DEBUG)
     set_dsn("postgresql://filemeta:filemeta@localhost:5432/filemeta")
-    app.run(host="0.0.0.0", port=8181)
+    app.run(host="0.0.0.0", port=8181, threaded=True)
