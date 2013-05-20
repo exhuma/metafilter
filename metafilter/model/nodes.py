@@ -201,7 +201,7 @@ def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
                         auto_tags.add(tag)
 
     if auto_tags:
-        set_tags(sess, db_node, auto_tags, False)
+        set_tags(sess, db_node.md5, auto_tags, False)
     sess.add(db_node)
     LOG.info("Updated %s with tags %r" % (db_node, auto_tags))
     #except Exception, exc:
@@ -272,28 +272,41 @@ def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail
     LOG.info("commit")
     sess.commit()
 
-def set_tags(sess, uri, new_tags, purge=True):
-    if isinstance(uri, basestring):
-        node = by_uri(sess, uri)
-    elif isinstance(uri, Node):
-        node = uri
+def set_tags(sess, md5, new_tags, purge=True):
+    query = node_has_tag_table.select()
+    query = query.where(node_has_tag_table.c.md5 == md5)
 
-    if not node:
-        return
+    old_tags = []
+    removals = []
+    for row in sess.execute(query):
+        old_tags.append(row.tag)
 
     if purge:
-        for tag in node.tags:
-            if tag.name not in new_tags:
-                node.tags.remove(tag)
+        for tag in old_tags:
+            if tag not in new_tags:
+                removals.append(tag)
+
+        for tag in removals:
+            dquery = node_has_tag_table.delete()
+            dquery = dquery.where(node_has_tag_table.c.name == tag)
+            dquery = dquery.where(node_has_tag_table.c.md5 == md5)
 
     for tag_word in new_tags:
         tag = Tag.find(sess, tag_word)
         if not tag:
             tag = Tag(tag_word)
-        if tag not in node.tags:
-            if not node.md5:
-                node.md5 = file_md5(node.uri)
-            node.tags.append(tag)
+        if tag_word not in old_tags:
+            iquery = node_has_tag_table.insert()
+            iquery = iquery.values({
+                'md5': md5,
+                'tag': tag_word
+            })
+            sess.commit()
+            try:
+                sess.execute(iquery)
+                sess.commit()
+            except IntegrityError:
+                sess.rollback()
 
 def remove_empty_dirs(sess, root):
     root_ltree = uri_to_ltree(root)
