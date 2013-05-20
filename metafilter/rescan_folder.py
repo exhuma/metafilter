@@ -17,7 +17,7 @@ CONSOLE_HANDLER.setFormatter(FORMATTER)
 logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger().addHandler(CONSOLE_HANDLER)
 
-from metafilter.model import Session, CONFIG
+from metafilter.model import Session, CONFIG, set_dsn
 from metafilter.model.nodes import update_nodes_from_path, remove_orphans, calc_md5
 
 error_log = expanduser(CONFIG.get('cli_logging', 'error_log', None))
@@ -48,6 +48,8 @@ def main():
                 help="Verbose output to stdout")
     parser.add_option("-q", "--quiet", dest="quiet", default=False, action="store_true",
                 help="Suppresses informational messages from output (overrides -v)")
+    parser.add_option("-d", "--dsn", dest="dsn",
+                      help="The database DSN", default="")
 
     (options, args) = parser.parse_args()
 
@@ -55,6 +57,12 @@ def main():
         CONSOLE_HANDLER.setLevel(logging.DEBUG)
     if options.quiet:
         CONSOLE_HANDLER.setLevel(logging.WARNING)
+
+    if options.dsn:
+        set_dsn(options.dsn)
+    else:
+        print LOG.fatal("No DSN specified!")
+        return 9
 
     if options.since:
         try:
