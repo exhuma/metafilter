@@ -93,31 +93,38 @@ def add_sparse_metadata(node):
     Adds additional metadata into the HSTORE table
     """
     import Image
-    if node.mimetype in ('image/jpeg', ):
+    if node.mimetype not in ('image/jpeg', ):
+        return
+
+    try:
         im = Image.open(node.uri)
-        md5 = node.md5
-        if not md5:
-            md5 = file_md5(node.uri)
-            upd = nodes_table.update().where(
-                    nodes_table.c.uri == node.uri).values(
-                            md5=md5)
-        aspect_ratio = "%.3f" % (float(im.size[0]) / float(im.size[1]))
-        values = dict(
-            md5 = md5,
-            metadata = dict(
-                dimensions = "%s, %s" % im.size,
-                aspect_ratio = aspect_ratio,
-                ))
-        try:
-            ins = node_meta_table.insert().values(
-                    **values
-                    )
-            ins.execute()
-        except IntegrityError:
-            upd = node_meta_table.update().where(
-                    node_meta_table.c.md5 == md5).values(
-                            **values)
-            upd.execute()
+    except IOError, exc:
+        LOG.warning('Unable to add sparse metadata for %r (%s)' % (node, exc))
+        return
+
+    md5 = node.md5
+    if not md5:
+        md5 = file_md5(node.uri)
+        upd = nodes_table.update().where(
+                nodes_table.c.uri == node.uri).values(
+                        md5=md5)
+    aspect_ratio = "%.3f" % (float(im.size[0]) / float(im.size[1]))
+    values = dict(
+        md5 = md5,
+        metadata = dict(
+            dimensions = "%s, %s" % im.size,
+            aspect_ratio = aspect_ratio,
+            ))
+    try:
+        ins = node_meta_table.insert().values(
+                **values
+                )
+        ins.execute()
+    except IntegrityError:
+        upd = node_meta_table.update().where(
+                node_meta_table.c.md5 == md5).values(
+                        **values)
+        upd.execute()
 
 def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
     from os.path import isfile, join
@@ -142,8 +149,9 @@ def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
     auto_tags = set([])
     try:
         unipath = path.decode(getfilesystemencoding())
-    except UnicodeEncodeError, exc:
+    except UnicodeEncodeError:
         LOG.error('Unable to encode %r using %s' % (path, getfilesystemencoding()))
+        return
     if auto_tag_folder_tail:
         tailname = split(dirname(unipath))[-1]
         if tailname and len(tailname) > TAIL_DIR_THRESHOLD:
@@ -156,52 +164,63 @@ def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
             if word.lower() in [x.lower() for x in splitpath(dirname(unipath))]:
                 auto_tags.add(word)
 
-    try:
-        detached_file = Node(unipath)
-        detached_file.mimetype = mimetype
-        add_sparse_metadata(detached_file)
-        detached_file.created = create_time
-        detached_file.updated = mod_time
+    db_node = sess.query(Node).filter_by(uri=unipath).first()
+    if not db_node:
+        LOG.info("New node: %s" % (db_node, ))
+        db_node = Node(unipath)
+    db_node.mimetype = mimetype
+    add_sparse_metadata(db_node)
+    db_node.created = create_time
+    db_node.updated = mod_time
 
-        # process "tag.hints"
-        #
-        # the file contains a comma-separated list of tags applied to
-        # all files in this folder
-        #
-        # If a line contains '::' the tags only apply to the filename
-        # given before the '::' separator. Example:
-        #
-        # thefile.txt::documentation, project a, draft
-        attached_file = sess.merge(detached_file)
-        unidir = dirname(unipath)
-        hints_file = join(unidir, 'tag.hints')
-        if exists(hints_file):
-            for line in open(hints_file).readlines():
-                if not '::' in line:
-                    hint_tags = [_.strip() for _ in line.split(',')]
+    # process "tag.hints"
+    #
+    # the file contains a comma-separated list of tags applied to
+    # all files in this folder
+    #
+    # If a line contains '::' the tags only apply to the filename
+    # given before the '::' separator. Example:
+    #
+    # thefile.txt::documentation, project a, draft
+    if not db_node.md5:
+        LOG.info('Updating MD5')
+        db_node.md5 = file_md5(unipath)
+    unidir = dirname(unipath)
+    hints_file = join(unidir, 'tag.hints')
+    if exists(hints_file):
+        for line in open(hints_file).readlines():
+            if not '::' in line:
+                hint_tags = [_.strip() for _ in line.split(',')]
+                for tag in hint_tags:
+                    auto_tags.add(tag)
+            else:
+                filename, tags = line.split('::')
+                if file == filename.strip():
+                    hint_tags = [_.strip() for _ in tags.split(',')]
                     for tag in hint_tags:
                         auto_tags.add(tag)
-                else:
-                    filename, tags = line.split('::')
-                    if file == filename.strip():
-                        hint_tags = [_.strip() for _ in tags.split(',')]
-                        for tag in hint_tags:
-                            auto_tags.add(tag)
 
-        if auto_tags:
-            set_tags(sess, attached_file, auto_tags, False)
-        sess.add(attached_file)
-        sess.commit()
-        LOG.info("Added %s with tags %r" % (attached_file, auto_tags))
-    except Exception, exc:
-        LOG.error("%r: %s" % (path, exc))
-        sess.rollback()
+    if auto_tags:
+        set_tags(sess, db_node, auto_tags, False)
+    sess.add(db_node)
+    LOG.info("Updated %s with tags %r" % (db_node, auto_tags))
+    #except Exception, exc:
+    #    LOG.error("%r: %s" % (path, exc))
+    #    sess.rollback()
 
-def update_nodes_from_query(sess, query, oldest_refresh=None, auto_tag_folder_tail=False, auto_tag_words=[]):
+def update_nodes_from_query(sess, query, oldest_refresh=None, auto_tag_folder_tail=False, auto_tag_words=[], purge=False):
     if not query.endswith('__flat__'):
         query += '/__flat__'
 
-    for node in from_incremental_query(sess, query):
+    result = from_incremental_query(sess, query)
+    for node in result:
+        if not exists(node.uri) and purge:
+            LOG.info("Purging %r" % node)
+            sess.delete(node)
+            continue
+        elif not exists(node.uri):
+            LOG.warning('Node %r is gone!' % node)
+            continue
         update_one_node(sess, node.uri, auto_tag_folder_tail, auto_tag_words)
 
 def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail=False, auto_tag_words=[]):
@@ -250,6 +269,7 @@ def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail
         if '.svn' in dirs:
             dirs.remove('.svn')  # don't visit CVS directories
 
+    LOG.info("commit")
     sess.commit()
 
 def set_tags(sess, uri, new_tags, purge=True):
@@ -307,6 +327,7 @@ def remove_orphans(sess, root):
             LOG.info('Removing orphan %r' % row[0])
             try:
                 nodes_table.delete(nodes_table.c.uri == row[0]).execute()
+                LOG.info("commit")
                 sess.commit()
             except:
                 sess.rollback()
@@ -332,10 +353,10 @@ def calc_md5(sess, root, since=None):
 
         if count % 500 == 0:
             # commit from time to time
-            sess.commit()
             LOG.info('commit')
-    sess.commit()
+            sess.commit()
     LOG.info('commit')
+    sess.commit()
 
 def rated(stmt, parent_uri, nodes):
 
@@ -735,7 +756,6 @@ def one_image(sess, query, offset):
     node = stmt.first()
     return node
 
-@memoized
 def from_incremental_query(sess, query):
     LOG.debug('parsing incremental query %r' % query)
 
@@ -898,6 +918,7 @@ def delete_from_disk(sess, path):
         LOG.exception(exc)
 
     sess.delete(node)
+    LOG.info("commit")
     sess.commit()
 
 @memoized

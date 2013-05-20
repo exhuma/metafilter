@@ -40,9 +40,16 @@ def query(query="root"):
     result += nodes.from_incremental_query(g.sess, query)
 
     try:
-        result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
+        result = result.order_by([
+            Node.mimetype != 'other/directory',
+            Node.uri])
     except Exception, exc:
         LOG.info(exc)
+
+    if request.values.get('format', '') == 'json':
+        return jsonify(dict(
+            result=[{'download_url': url_for('download', path=_.path)} for _ in result]
+            ))
 
     return render_template("entries.html", entries=result, query=query)
 
@@ -75,7 +82,13 @@ def thumbnail(path):
 @app.route('/download/<path>')
 def download(path):
     node = nodes.by_path(g.sess, path)
-    response = make_response(open(node.uri,'rb').read())
+    data = open(node.uri, 'rb').read()
+    if request.values.get('format', '') == 'json':
+        return jsonify(
+                data=data.encode('base64')
+                )
+
+    response = make_response(data)
     response.headers['Content-Type'] = node.mimetype
     return response
 
@@ -155,14 +168,16 @@ def view(query, index=0):
     result = filter(lambda x: x.mimetype != 'other/directory', result)
 
     try:
-        result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
+        result = result.order_by([
+            Node.mimetype != 'other/directory',
+            Node.uri])
     except Exception, exc:
         LOG.info(exc)
 
     return render_template("view.html",
-            node = result[index],
-            query = query,
-            index = index,
+            node=result[index],
+            query=query,
+            index=index,
             )
 
 @app.route("/file_uri/<path:query>/<int:index>")
@@ -206,5 +221,5 @@ def fullscreen(query):
 if __name__ == "__main__":
     app.debug = True
     logging.basicConfig(level=logging.DEBUG)
-    set_dsn("postgresql://filemeta:filemeta@localhost:5433/filemeta")
+    set_dsn("postgresql://filemeta:filemeta@localhost:5432/filemeta")
     app.run(host="0.0.0.0", port=8181)
