@@ -6,6 +6,8 @@ from optparse import OptionParser
 import logging
 import logging.handlers
 
+from config_resolver import Config
+
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
@@ -16,7 +18,9 @@ CONSOLE_HANDLER.setFormatter(FORMATTER)
 logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger().addHandler(CONSOLE_HANDLER)
 
-from metafilter.model import Session, CONFIG
+CONF = Config('wicked', 'metafilter')
+
+from metafilter.model import Session, CONFIG, set_dsn
 from metafilter.model.nodes import update_nodes_from_query
 
 error_log = expanduser(CONFIG.get('cli_logging', 'error_log', None))
