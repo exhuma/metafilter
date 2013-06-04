@@ -11,7 +11,7 @@ import os
 from os.path import exists
 import sys
 
-from fusepy.fuse import FUSE, Operations, FuseOSError
+from fuse import FUSE, Operations, FuseOSError
 import metafilter.model
 from metafilter.model import Session, memoized
 from metafilter.model.nodes import by_uri, from_incremental_query, map_to_fs, subdirs

@@ -12,7 +12,8 @@ setup(
       'psycopg2==2.3.0',
       'PIL',
       'simplejson',
-      'config_resolver<4.0'
+      'config_resolver<4.0',
+      'fusepy==2.0.2'
       ],
    author = "Michel Albert",
    author_email = "michel@albert.lu",
