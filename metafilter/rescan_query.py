@@ -45,6 +45,8 @@ def main():
                 help="Automatically purge files from the database which have disappeared from disk.")
     parser.add_option("-q", "--quiet", dest="quiet", default=False, action="store_true",
                 help="Suppresses informational messages from output (overrides -v)")
+    parser.add_option("-d", "--dsn", dest="dsn",
+                      help="The database DSN", default=CONF.get('database', 'dsn'))
 
     (options, args) = parser.parse_args()
 
@@ -52,6 +54,12 @@ def main():
         CONSOLE_HANDLER.setLevel(logging.DEBUG)
     if options.quiet:
         CONSOLE_HANDLER.setLevel(logging.WARNING)
+
+    if options.dsn:
+        set_dsn(options.dsn)
+    else:
+        print LOG.fatal("No DSN specified!")
+        return 9
 
     if not args:
         LOG.critical("No query specified!")

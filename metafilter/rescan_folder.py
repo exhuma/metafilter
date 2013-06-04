@@ -53,7 +53,7 @@ def main():
     parser.add_option("-q", "--quiet", dest="quiet", default=False, action="store_true",
                 help="Suppresses informational messages from output (overrides -v)")
     parser.add_option("-d", "--dsn", dest="dsn",
-                      help="The database DSN", default="")
+                      help="The database DSN", default=CONF.get('database', 'dsn'))
 
     (options, args) = parser.parse_args()
 
