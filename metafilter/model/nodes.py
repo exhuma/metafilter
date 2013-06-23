@@ -28,7 +28,6 @@ import os
 from sys import getfilesystemencoding
 
 import parsedatetime.parsedatetime as pdt
-import parsedatetime.parsedatetime_consts as pdc
 
 import logging
 
@@ -59,8 +58,7 @@ acknowledged_duplicates_table = Table('acknowledged_duplicates', metadata,
 
 TIME_PATTERN = re.compile(r'(\d{4}-\d{2}-\d{2})?(t)?(\d{4}-\d{2}-\d{2})?')
 LOG = logging.getLogger(__name__)
-PCONST = pdc.Constants()
-CALENDAR = pdt.Calendar(PCONST)
+CALENDAR = pdt.Calendar()
 
 # folder names must be longer than this to be auto-tagged
 TAIL_DIR_THRESHOLD = 3

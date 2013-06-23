@@ -13,7 +13,8 @@ setup(
       'PIL',
       'simplejson',
       'config_resolver<4.0',
-      'fusepy==2.0.2'
+      'fusepy==2.0.2',
+      'parsedatetime==1.1.2',
       ],
    author = "Michel Albert",
    author_email = "michel@albert.lu",
