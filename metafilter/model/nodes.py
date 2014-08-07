@@ -1,41 +1,46 @@
+from datetime import datetime
+from os.path import basename, exists, dirname, split, join, abspath
+from sys import getfilesystemencoding
+import logging
+import os
+import re
+
 from sqlalchemy import (
-          Table,
-          Column,
-          Integer,
-          Unicode,
-          String,
-          DateTime,
-          Boolean,
-          Numeric,
-          UniqueConstraint,
-          select,
-          func,
-          or_,
-          bindparam,
-          text,
-          not_)
+    Boolean,
+    Column,
+    DateTime,
+    Integer,
+    Numeric,
+    String,
+    Table,
+    Unicode,
+    UniqueConstraint,
+    bindparam,
+    func,
+    not_,
+    or_,
+    select,
+    text,
+)
 from sqlalchemy.orm import mapper, relation
 from sqlalchemy.sql import distinct, cast
 from sqlalchemy.exc import IntegrityError
+import parsedatetime.parsedatetime as pdt
+
+from metafilter.model import memoized
 from metafilter.model import metadata, uri_to_ltree, file_md5, uri_depth
 from metafilter.model.hstore_type import HStore, HStoreColumn
 from metafilter.model.queries import Query, query_table
-from metafilter.model.tags import Tag, node_has_tag_table, tag_in_tag_group_table
-from os.path import basename, exists, dirname, split
-from datetime import datetime
-import re
-import os
-from sys import getfilesystemencoding
-
-import parsedatetime.parsedatetime as pdt
-
-import logging
-
-from metafilter.model import memoized
+from metafilter.model.tags import (
+    Tag,
+    node_has_tag_table,
+    tag_in_tag_group_table
+)
 
 # --- Table definitions ------------------------------------------------------
 
-nodes_table = Table('node', metadata,
+nodes_table = Table(
+    'node', metadata,
     Column('uri', Unicode, nullable=False, primary_key=True),
     Column('path', String),
     Column('md5', String(32)),
@@ -47,12 +52,14 @@ nodes_table = Table('node', metadata,
     UniqueConstraint('uri', name='unique_uri')
 )
 
-node_meta_table = Table('node_meta', metadata,
+node_meta_table = Table(
+    'node_meta', metadata,
     Column('md5', String(32), primary_key=True),
     HStoreColumn('metadata', HStore())
 )
 
-acknowledged_duplicates_table = Table('acknowledged_duplicates', metadata,
+acknowledged_duplicates_table = Table(
+    'acknowledged_duplicates', metadata,
     Column('md5', String, nullable=False, primary_key=True),
 )
 
@@ -62,6 +69,7 @@ CALENDAR = pdt.Calendar()
 
 # folder names must be longer than this to be auto-tagged
 TAIL_DIR_THRESHOLD = 3
+
 
 # --- "Static" methods -------------------------------------------------------
 
@@ -76,15 +84,18 @@ def splitpath(path):
         path = head
     return output
 
+
 def by_uri(session, uri):
     qry = session.query(Node)
-    qry = qry.filter( Node.uri == uri )
+    qry = qry.filter(Node.uri == uri)
     return qry.first()
+
 
 def by_path(session, path):
     qry = session.query(Node)
-    qry = qry.filter( Node.path == path )
+    qry = qry.filter(Node.path == path)
     return qry.first()
+
 
 def add_sparse_metadata(node):
     """
@@ -104,25 +115,25 @@ def add_sparse_metadata(node):
     if not md5:
         md5 = file_md5(node.uri)
         upd = nodes_table.update().where(
-                nodes_table.c.uri == node.uri).values(
-                        md5=md5)
+            nodes_table.c.uri == node.uri).values(
+                md5=md5)
     aspect_ratio = "%.3f" % (float(im.size[0]) / float(im.size[1]))
     values = dict(
-        md5 = md5,
-        metadata = dict(
-            dimensions = "%s, %s" % im.size,
-            aspect_ratio = aspect_ratio,
-            ))
+        md5=md5,
+        metadata=dict(
+            dimensions="%s, %s" % im.size,
+            aspect_ratio=aspect_ratio,
+        ))
     try:
         ins = node_meta_table.insert().values(
-                **values
-                )
+            **values)
         ins.execute()
     except IntegrityError:
         upd = node_meta_table.update().where(
-                node_meta_table.c.md5 == md5).values(
-                        **values)
+            node_meta_table.c.md5 == md5).values(
+                **values)
         upd.execute()
+
 
 def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
     from os.path import isfile, join
@@ -137,9 +148,9 @@ def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
         return
 
     mod_time = max(
-            datetime.fromtimestamp(os.stat(path).st_mtime),
-            datetime.fromtimestamp(os.stat(path).st_ctime)
-            )
+        datetime.fromtimestamp(os.stat(path).st_mtime),
+        datetime.fromtimestamp(os.stat(path).st_ctime)
+    )
     create_time = datetime.fromtimestamp(os.stat(path).st_ctime)
 
     mimetype, _ = mimetypes.guess_type(path)
@@ -148,14 +159,16 @@ def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
     try:
         unipath = path.decode(getfilesystemencoding())
     except UnicodeEncodeError:
-        LOG.error('Unable to encode %r using %s' % (path, getfilesystemencoding()))
+        LOG.error('Unable to encode %r using %s' % (
+            path, getfilesystemencoding()))
         return
     if auto_tag_folder_tail:
         tailname = split(dirname(unipath))[-1]
         if tailname and len(tailname) > TAIL_DIR_THRESHOLD:
             auto_tags.add(tailname)
         else:
-            LOG.warning("Not using %r as auto-tag-name. Either it's empty or too short", tailname)
+            LOG.warning("Not using %r as auto-tag-name. "
+                        "Either it's empty or too short", tailname)
 
     if auto_tag_words:
         for word in auto_tag_words:
@@ -187,7 +200,7 @@ def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
     hints_file = join(unidir, 'tag.hints')
     if exists(hints_file):
         for line in open(hints_file).readlines():
-            if not '::' in line:
+            if '::' not in line:
                 hint_tags = [_.strip() for _ in line.split(',')]
                 for tag in hint_tags:
                     auto_tags.add(tag)
@@ -202,11 +215,11 @@ def update_one_node(sess, path, auto_tag_folder_tail=False, auto_tag_words=[]):
         set_tags(sess, db_node.md5, auto_tags, False)
     sess.add(db_node)
     LOG.info("Updated %s with tags %r" % (db_node, auto_tags))
-    #except Exception, exc:
-    #    LOG.error("%r: %s" % (path, exc))
-    #    sess.rollback()
 
-def update_nodes_from_query(sess, query, oldest_refresh=None, auto_tag_folder_tail=False, auto_tag_words=[], purge=False):
+
+def update_nodes_from_query(sess, query, oldest_refresh=None,
+                            auto_tag_folder_tail=False, auto_tag_words=[],
+                            purge=False):
     if not query.endswith('__flat__'):
         query += '/__flat__'
 
@@ -221,14 +234,15 @@ def update_nodes_from_query(sess, query, oldest_refresh=None, auto_tag_folder_ta
             continue
         update_one_node(sess, node.uri, auto_tag_folder_tail, auto_tag_words)
 
-def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail=False, auto_tag_words=[]):
-    import os
-    from os.path import join, abspath
+
+def update_nodes_from_path(sess, root, oldest_refresh=None,
+                           auto_tag_folder_tail=False, auto_tag_words=[]):
 
     root_ltree = uri_to_ltree(root)
     if not oldest_refresh:
         oldest_refresh = select([func.max(Node.updated)])
-        oldest_refresh = oldest_refresh.where( Node.path.op("<@")(root_ltree) )
+        oldest_refresh = oldest_refresh.where(
+            Node.path.op("<@")(root_ltree))
         oldest_refresh = oldest_refresh.execute().first()[0]
 
     LOG.info("Rescanning files that changed since %s" % oldest_refresh)
@@ -245,14 +259,13 @@ def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail
             scanned_files += 1
 
             mod_time = max(
-                    datetime.fromtimestamp(os.stat(path).st_mtime),
-                    datetime.fromtimestamp(os.stat(path).st_ctime)
-                    )
+                datetime.fromtimestamp(os.stat(path).st_mtime),
+                datetime.fromtimestamp(os.stat(path).st_ctime)
+            )
 
             # ignore files which have not been modified since last scan
             if oldest_refresh and mod_time < oldest_refresh:
                 continue
-
 
         if scanned_files > 0:
             LOG.info("commit")
@@ -269,6 +282,7 @@ def update_nodes_from_path(sess, root, oldest_refresh=None, auto_tag_folder_tail
 
     LOG.info("commit")
     sess.commit()
+
 
 def set_tags(sess, md5, new_tags, purge=True):
     query = node_has_tag_table.select()
@@ -306,6 +320,7 @@ def set_tags(sess, md5, new_tags, purge=True):
             except IntegrityError:
                 sess.rollback()
 
+
 def remove_empty_dirs(sess, root):
     root_ltree = uri_to_ltree(root)
     nodes = root_ltree.split('.')
@@ -314,22 +329,23 @@ def remove_empty_dirs(sess, root):
         return
 
     qry = select([Node.path])
-    qry = qry.where( Node.path.op("<@")('.'.join(nodes)) )
-    qry = qry.where( Node.mimetype == 'other/directory' )
-    child_nodes = [ row[0] for row in qry.execute() ]
+    qry = qry.where(Node.path.op("<@")('.'.join(nodes)))
+    qry = qry.where(Node.mimetype == 'other/directory')
+    child_nodes = [row[0] for row in qry.execute()]
 
     for node in child_nodes:
         qry = select([func.count(Node.uri)])
-        qry = qry.where( Node.path.op("<@")(node) )
+        qry = qry.where(Node.path.op("<@")(node))
         for row in qry.execute():
             if row[0] == 1:
                 LOG.debug('Removing empty dir: %r' % node)
                 nodes_table.delete(nodes_table.c.path == node).execute()
 
+
 def remove_orphans(sess, root):
     root_ltree = uri_to_ltree(root)
     qry = select([Node.uri, Node.mimetype])
-    qry = qry.where( Node.path.op("<@")(root_ltree) )
+    qry = qry.where(Node.path.op("<@")(root_ltree))
     for row in qry.execute():
         if not exists(row[0]):
             LOG.info('Removing orphan %r' % row[0])
@@ -342,11 +358,12 @@ def remove_orphans(sess, root):
 
     remove_empty_dirs(sess, root)
 
+
 def calc_md5(sess, root, since=None):
     root_ltree = uri_to_ltree(root)
     qry = sess.query(Node)
-    qry = qry.filter( Node.path.op("<@")(root_ltree) )
-    qry = qry.filter( Node.mimetype != 'other/directory' )
+    qry = qry.filter(Node.path.op("<@")(root_ltree))
+    qry = qry.filter(Node.mimetype != 'other/directory')
 
     if since:
         qry = qry.filter(Node.updated >= since)
@@ -365,6 +382,7 @@ def calc_md5(sess, root, since=None):
             sess.commit()
     LOG.info('commit')
     sess.commit()
+
 
 def rated(stmt, parent_uri, nodes):
 
@@ -388,6 +406,7 @@ def rated(stmt, parent_uri, nodes):
 
     return stmt
 
+
 def mimetype(stmt, parent_uri, nodes):
     """
     Filter by mime type
@@ -401,18 +420,20 @@ def mimetype(stmt, parent_uri, nodes):
 
     return stmt
 
+
 def major_mimetype(stmt, parent_uri, nodes):
     """
     Filter by major mime type (the part before the slash)
     """
 
     mimetype_major = nodes.pop(0)
-    #TODO# SQL Injection possible right here!
+    # TODO # SQL Injection possible right here!
     mimetype = '%s/%%' % (mimetype_major,)
 
     stmt = stmt.filter(Node.mimetype.like(mimetype))
 
     return stmt
+
 
 def in_path(stmt, nodes):
 
@@ -421,12 +442,14 @@ def in_path(stmt, nodes):
     stmt = stmt.filter(Node.uri.ilike('%%%s%%' % substring))
     return stmt
 
+
 def has_md5(stmt, parent_uri, nodes):
 
     md5 = nodes.pop(0)
     LOG.debug("Finding entries with md5 %s" % (md5))
     stmt = stmt.filter(Node.md5 == md5)
     return stmt
+
 
 def all(sess, nodes, flatten=False):
 
@@ -436,24 +459,26 @@ def all(sess, nodes, flatten=False):
     depth = uri_depth(parent_uri)
 
     stmt = sess.query(
-            distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-            )
+        distinct(func.subpath(Node.path, 0, depth + 1).label("subpath"))
+    )
 
-    stmt = stmt.filter( Node.path.op("<@")(parent_path) )
+    stmt = stmt.filter(Node.path.op("<@")(parent_path))
     stmt = stmt.subquery()
-    qry = sess.query( Node )
-    qry = qry.filter( Node.path.in_(stmt) )
+    qry = sess.query(Node)
+    qry = qry.filter(Node.path.in_(stmt))
 
     return qry
+
 
 def dated(sess, stmt, parent_uri, nodes):
 
     date_string = nodes.pop(0)
 
-    LOG.debug("Finding entries using date string %s in %r" % (date_string, parent_uri))
+    LOG.debug("Finding entries using date string %s in %r" % (
+        date_string, parent_uri))
 
     match = TIME_PATTERN.match(date_string)
-    if  match and match.groups() != (None, None, None):
+    if match and match.groups() != (None, None, None):
         groups = match.groups()
         if groups[0] and not groups[1] and not groups[2]:
             # matches 'yyyy-mm-dd'
@@ -478,6 +503,7 @@ def dated(sess, stmt, parent_uri, nodes):
         stmt = stmt.filter(Node.created > start_date)
     return stmt
 
+
 def tagged(sess, stmt, parent_uri, nodes):
     """
     Find nodes with specific tags. Tags can be comma separated or
@@ -487,22 +513,27 @@ def tagged(sess, stmt, parent_uri, nodes):
 
     tag_string = nodes.pop(0)
 
-    LOG.debug("Finding entries using tag string %s in %r" % (tag_string, parent_uri))
+    LOG.debug("Finding entries using tag string %s in %r" % (
+        tag_string, parent_uri))
 
-    tagspec = [[x.strip() for x in _.strip().split('+')] for _ in tag_string.split(',')]
+    tagspec = [[x.strip() for x in _.strip().split('+')]
+               for _ in tag_string.split(',')]
     LOG.debug("Parsed filters: %r" % tagspec)
 
-    flat_tags = [item for  sublist in tagspec for item in sublist]
+    flat_tags = [item for sublist in tagspec for item in sublist]
 
     disjunctions = []
     tag_offset = 0
     for conjunction in tagspec:
         # complicated stuff to prevent SQL injections...
-        placeholders = ', '.join([':tag_%d' % _ for _ in range(tag_offset,
-            tag_offset+len(conjunction))])
+        placeholders = ', '.join([':tag_%d' % _
+                                  for _ in range(tag_offset,
+                                                 tag_offset + len(conjunction))
+                                  ])
         sql = text('ARRAY[%s]' % placeholders, bindparams=[
-            bindparam('tag_%d' % (tag_offset+pos), value) for pos, value in enumerate(conjunction)
-            ])
+            bindparam('tag_%d' % (tag_offset + pos), value)
+            for pos, value in enumerate(conjunction)
+        ])
 
         tmp = func.array_agg(node_has_tag_table.c.tag).op('@>')(sql)
         disjunctions.append(tmp)
@@ -516,6 +547,7 @@ def tagged(sess, stmt, parent_uri, nodes):
     stmt = stmt.filter(Node.md5.in_(subq))
 
     return stmt
+
 
 def aspect(stmt, parent_uri, nodes):
     """
@@ -539,32 +571,33 @@ def aspect(stmt, parent_uri, nodes):
     subq = select([node_meta_table.c.md5])
     if op == 'gt':
         subq = subq.where(
-                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(7,3)) > value)
+            cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                 Numeric(7, 3)) > value)
     elif op == 'ge':
         subq = subq.where(
-                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(7,3)) >= value)
+            cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                 Numeric(7, 3)) >= value)
     elif op == 'lt':
         subq = subq.where(
-                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(7,3)) < value)
+            cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                 Numeric(7, 3)) < value)
     elif op == 'le':
         subq = subq.where(
-                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(7,3)) <= value)
+            cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                 Numeric(7, 3)) <= value)
     elif op == 'eq':
         subq = subq.where(
-                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(7,3)) == value)
+            cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                 Numeric(7, 3)) == value)
     elif op == 'ne':
         subq = subq.where(
-                cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-                    Numeric(7,3)) != value)
+            cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
+                 Numeric(7, 3)) != value)
 
     stmt = stmt.filter(Node.md5.in_(subq))
 
     return stmt
+
 
 def aspect_range(stmt, parent_uri, nodes):
     """
@@ -576,21 +609,21 @@ def aspect_range(stmt, parent_uri, nodes):
         value_max - Aspect ratio (float)
     """
 
-
     value_min = float(nodes.pop(0))
     value_max = float(nodes.pop(0))
 
     subq = select([node_meta_table.c.md5])
     subq = subq.where(
         cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-            Numeric(7,3)) >= value_min)
+             Numeric(7, 3)) >= value_min)
     subq = subq.where(
         cast(node_meta_table.c.metadata.op('->')('aspect_ratio'),
-            Numeric(7,3)) <= value_max)
+             Numeric(7, 3)) <= value_max)
 
     stmt = stmt.filter(Node.md5.in_(subq))
 
     return stmt
+
 
 def in_tag_group(sess, stmt, parent_uri, nodes):
 
@@ -598,7 +631,8 @@ def in_tag_group(sess, stmt, parent_uri, nodes):
 
     group_string = nodes.pop(0)
 
-    LOG.debug("Finding entries using tag group string %s in %r" % (group_string, parent_uri))
+    LOG.debug("Finding entries using tag group string %s in %r" % (
+        group_string, parent_uri))
 
     groups = group_string.split(',')
 
@@ -615,6 +649,7 @@ def in_tag_group(sess, stmt, parent_uri, nodes):
 
     return stmt
 
+
 def duplicates(sess):
 
     acks = select([acknowledged_duplicates_table.c.md5])
@@ -626,14 +661,17 @@ def duplicates(sess):
     qry = qry.order_by(func.count(Node.md5).desc())
     return qry
 
+
 def acknowledge_duplicate(sess, md5):
     acknowledged_duplicates_table.insert(values={'md5': md5}).execute()
+
 
 def set_rating(path, value):
     upd = nodes_table.update()
     upd = upd.values(rating=value)
-    upd = upd.where(nodes_table.c.path==path)
+    upd = upd.where(nodes_table.c.path == path)
     upd.execute()
+
 
 def expected_params(query_types):
     num = 0
@@ -671,6 +709,7 @@ def expected_params(query_types):
             num += 1
 
     return num
+
 
 def subdirs(sess, query):
     LOG.debug('subfolders in %s' % query)
@@ -714,11 +753,11 @@ def subdirs(sess, query):
     depth = uri_depth(parent_uri)
 
     stmt = sess.query(
-            distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-            )
+        distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
+    )
 
-    stmt = stmt.filter( Node.path.op("<@")(parent_path) )
-    stmt = stmt.filter( func.nlevel(Node.path) > uri_depth(parent_uri)+1)
+    stmt = stmt.filter(Node.path.op("<@")(parent_path))
+    stmt = stmt.filter(func.nlevel(Node.path) > uri_depth(parent_uri)+1)
 
     if len(query_types) == 1 and query_types[0] == 'all':
         return [DummyNode(x[0].rsplit('.')[-1]) for x in stmt]
@@ -757,6 +796,7 @@ def subdirs(sess, query):
 
     return [DummyNode(x[0].rsplit('.', 1)[-1]) for x in stmt]
 
+
 def one_image(sess, query, offset):
     stmt = from_incremental_query(sess, query)
     stmt = stmt.filter(Node.mimetype != 'other/directory')
@@ -764,21 +804,22 @@ def one_image(sess, query, offset):
     node = stmt.first()
     return node
 
+
 def from_incremental_query(sess, query):
     LOG.debug('parsing incremental query %r' % query)
 
     if not query or query == 'root' or query == '/':
         # list the available query schemes
         return [
-                DummyNode('all'),
-                DummyNode('date'),
-                DummyNode('in_path'),
-                DummyNode('md5'),
-                DummyNode('named_queries'),
-                DummyNode('rating'),
-                DummyNode('tag'),
-                DummyNode('tag_group'),
-                ]
+            DummyNode('all'),
+            DummyNode('date'),
+            DummyNode('in_path'),
+            DummyNode('md5'),
+            DummyNode('named_queries'),
+            DummyNode('rating'),
+            DummyNode('tag'),
+            DummyNode('tag_group'),
+        ]
     else:
         if query.startswith('root'):
             query = query[5:]
@@ -803,14 +844,14 @@ def from_incremental_query(sess, query):
 
     if 'named_queries' in query_types and not query_nodes:
         nq_qry = sess.query(Query)
-        nq_qry = nq_qry.filter( Query.label != None )
+        nq_qry = nq_qry.filter(Query.label != None)
         nq_qry = nq_qry.order_by(Query.label)
-        return [ DummyNode(x.label) for x in nq_qry.all() ]
+        return [DummyNode(x.label) for x in nq_qry.all()]
     elif query_types[0] == 'named_queries':
         # fetch the saved query and replace the named query by that string
         query_name = query_nodes.pop(0)
         nq_qry = sess.query(Query)
-        nq_qry = nq_qry.filter( Query.label == query_name ).first()
+        nq_qry = nq_qry.filter(Query.label == query_name).first()
         if not nq_qry:
             return []
 
@@ -827,8 +868,8 @@ def from_incremental_query(sess, query):
         stmt = stmt.order_by(query_table.c.query)
         for row in stmt:
             sub_nodes = row.query.split('/')
-            # we're in the case where the initial nodes were empty. We only return
-            # the next element
+            # we're in the case where the initial nodes were empty. We only
+            # return the next element
             output.append(DummyNode(sub_nodes[len(query_nodes)+1]))
         return output
 
@@ -841,10 +882,10 @@ def from_incremental_query(sess, query):
         stmt = sess.query(Node)
     else:
         stmt = sess.query(
-                distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
-                )
+            distinct(func.subpath(Node.path, 0, depth+1).label("subpath"))
+        )
 
-    stmt = stmt.filter( Node.path.op("<@")(parent_path) )
+    stmt = stmt.filter(Node.path.op("<@")(parent_path))
 
     # apply all filters in sequence
     for query_type in query_types:
@@ -882,12 +923,13 @@ def from_incremental_query(sess, query):
 
     if not flatten:
         stmt = stmt.subquery()
-        qry = sess.query( Node )
-        qry = qry.filter( Node.path.in_(stmt) )
+        qry = sess.query(Node)
+        qry = qry.filter(Node.path.in_(stmt))
         qry = qry.order_by(Node.uri)
         return qry
 
     return stmt.order_by(Node.uri)
+
 
 def map_to_fsold(query):
     """
@@ -911,6 +953,7 @@ def map_to_fsold(query):
 
     return None
 
+
 def delete_from_disk(sess, path):
     """
     Deletes an entry from disk and from the DB
@@ -928,6 +971,7 @@ def delete_from_disk(sess, path):
     sess.delete(node)
     LOG.info("commit")
     sess.commit()
+
 
 @memoized
 def map_to_fs(sess, query):
@@ -961,7 +1005,7 @@ def map_to_fs(sess, query):
 
     if map_nodes[0] == 'ROOT' and '__flat__' not in map_nodes:
         LOG.debug('normal mapping of %r ' % map_nodes)
-        map_nodes.pop(0) # remove leading 'ROOT'
+        map_nodes.pop(0)  # remove leading 'ROOT'
 
         LOG.info('remainder: %r' % map_nodes)
         out = '/' + '/'.join(map_nodes)
@@ -986,6 +1030,7 @@ def map_to_fs(sess, query):
             flatten_map[mapping_base][node.flatname] = node.uri
         return flatten_map[mapping_base].get(flatname, None)
 
+
 # --- Entity Classes ---------------------------------------------------------
 
 class DummyNode(object):
@@ -996,8 +1041,8 @@ class DummyNode(object):
 
     def __repr__(self):
         return "<DummyNode %s %r>" % (
-                self.is_dir() and "d" or "f",
-                self.label)
+            self.is_dir() and "d" or "f",
+            self.label)
 
     def is_dir(self):
         return True
@@ -1010,6 +1055,7 @@ class DummyNode(object):
     def flatname(self):
         return self.label
 
+
 class Node(DummyNode):
 
     def __init__(self, uri):
@@ -1018,8 +1064,8 @@ class Node(DummyNode):
 
     def __repr__(self):
         return "<Node %s %r>" % (
-                self.is_dir() and "d" or "f",
-                self.uri)
+            self.is_dir() and "d" or "f",
+            self.uri)
 
     def is_dir(self):
         return self.mimetype == "other/directory"
@@ -1059,4 +1105,3 @@ class Node(DummyNode):
 mapper(Node, nodes_table, properties={
     'tags': relation(Tag, secondary=node_has_tag_table, backref='nodes')
     })
-

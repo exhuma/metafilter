@@ -1,12 +1,13 @@
 from flask import (
-        Flask,
-        g,
-        render_template,
-        request,
-        redirect,
-        make_response,
-        url_for,
-        jsonify)
+    Flask,
+    g,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from metafilter.model import Node, Query, Session, Tag, set_dsn
 from metafilter.model import queries, nodes, tags as tag_model
 import logging
@@ -14,21 +15,25 @@ import logging
 LOG = logging.getLogger(__name__)
 app = Flask(__name__)
 
+
 class FlaskConfig(object):
     DEBUG = True
     SECRET_KEY = 'YSY*H3ZGFC-;@8F.QG*V@M9<MTXF=?N(OR<6O.%CKZD=\CM(O'
 
 app.config.from_object(FlaskConfig())
 
+
 @app.before_request
 def before_request():
     g.sess = Session()
+
 
 @app.after_request
 def after_request(response):
     g.sess.commit()
     g.sess.close()
     return response
+
 
 @app.route('/query')
 @app.route('/query/<path:query>')
@@ -48,20 +53,25 @@ def query(query="root"):
 
     if request.values.get('format', '') == 'json':
         return jsonify(dict(
-            result=[{'download_url': url_for('download', path=_.path)} for _ in result]
-            ))
+            result=[
+                {'download_url': url_for('download', path=_.path)}
+                for _ in result]
+        ))
 
     return render_template("entries.html", entries=result, query=query)
+
 
 @app.route('/tags')
 def tags():
     tags = tag_model.tag_counts(g.sess)
     return render_template("tags.html", tags=tags.execute())
 
+
 @app.route('/delete_from_disk/<path>')
 def delete_from_disk(path):
     nodes.delete_from_disk(g.sess, path)
     return redirect(request.referrer)
+
 
 @app.route('/thumbnail/<path>')
 def thumbnail(path):
@@ -79,24 +89,27 @@ def thumbnail(path):
     except Exception, exc:
         return str(exc)
 
+
 @app.route('/download/<path>')
 def download(path):
     node = nodes.by_path(g.sess, path)
     data = open(node.uri, 'rb').read()
     if request.values.get('format', '') == 'json':
         return jsonify(
-                data=data.encode('base64')
-                )
+            data=data.encode('base64')
+        )
 
     response = make_response(data)
     response.headers['Content-Type'] = node.mimetype
     return response
+
 
 @app.route('/set_rating', methods=["POST"])
 def set_rating():
     from metafilter.model.nodes import set_rating
     set_rating(request.form["path"], int(request.form['value']))
     return "OK"
+
 
 @app.route('/tag_all', methods=["POST"])
 def tag_all():
@@ -116,11 +129,13 @@ def tag_all():
 
     return redirect(url_for('query', query=request.form['query']))
 
+
 @app.route('/new_query', methods=["POST"])
 def new_query():
     qry = Query(request.form['query'])
     g.sess.add(qry)
     return redirect(request.referrer)
+
 
 @app.route("/")
 def list_queries():
@@ -129,35 +144,41 @@ def list_queries():
 
     return render_template("queries.html", saved_queries=qry)
 
+
 @app.route("/save_query", methods=["POST"])
 def save_query():
     old_query = request.form['id']
     new_query = request.form['value']
-    queries.update( g.sess, old_query, new_query )
+    queries.update(g.sess, old_query, new_query)
     return new_query
+
 
 @app.route("/save_tags", methods=["POST"])
 def save_tags():
     uri = request.form['id']
     tags_value = request.form['value']
     tags = [x.strip() for x in tags_value.split(',')]
-    nodes.set_tags( g.sess, uri, tags )
+    nodes.set_tags(g.sess, uri, tags)
     return ', '.join(tags)
+
 
 @app.route("/delete_query/<query>")
 def delete_query(query):
-    queries.delete( g.sess, query )
+    queries.delete(g.sess, query)
     return "OK"
+
 
 @app.route("/duplicates")
 def duplicates():
     return render_template("duplicates.html",
-            duplicates=nodes.duplicates(g.sess))
+                           duplicates=nodes.duplicates(g.sess))
+
 
 @app.route("/acknowledge_duplicate/<md5>")
 def acknowledge_duplicate(md5):
     nodes.acknowledge_duplicate(g.sess, md5)
     return redirect(url_for('duplicates'))
+
 
 @app.route("/view/<path:query>/<int:index>")
 def view(query, index=0):
@@ -175,10 +196,11 @@ def view(query, index=0):
         LOG.info(exc)
 
     return render_template("view.html",
-            node=result[index],
-            query=query,
-            index=index,
-            )
+                           node=result[index],
+                           query=query,
+                           index=index,
+                           )
+
 
 @app.route("/file_uri/<path:query>/<int:index>")
 def file_uri(query, index):
@@ -195,18 +217,19 @@ def file_uri(query, index):
         'image/jpg'), result)
 
     try:
-        result = result.order_by( [Node.mimetype != 'other/directory', Node.uri ] )
+        result = result.order_by([Node.mimetype != 'other/directory', Node.uri])
     except Exception, exc:
         LOG.info(exc)
 
     if index > len(result)-1:
         return jsonify(dict(
-            url = None
-            ))
+            url=None
+        ))
 
     return jsonify(dict(
-        url = url_for('download', path=result[index].path)
-        ))
+        url=url_for('download', path=result[index].path)
+    ))
+
 
 @app.route("/fullscreen/<path:query>")
 def fullscreen(query):
@@ -215,8 +238,7 @@ def fullscreen(query):
     """
 
     return render_template("fullscreen.html",
-            query = query,
-            )
+                           query=query)
 
 if __name__ == "__main__":
     app.debug = True

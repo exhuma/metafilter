@@ -1,17 +1,19 @@
 from ConfigParser import SafeConfigParser
 from cStringIO import StringIO
-
-import sqlalchemy
-from sqlalchemy import create_engine
-from sqlalchemy import MetaData
-from sqlalchemy.orm import sessionmaker
-from os.path import sep
-from hashlib import md5
-from datetime import datetime, timedelta
-import re
-
-import logging
+from os import getcwd
+from os.path import join, exists, expanduser
+from textwrap import dedent
 import functools
+import logging
+
+from datetime import datetime, timedelta
+from hashlib import md5
+from os.path import sep
+from sqlalchemy import MetaData
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+import re
+import sqlalchemy
 
 NON_LTREE = re.compile(r'[^a-zA-Z0-9/]')
 LOG = logging.getLogger(__name__)
@@ -19,12 +21,14 @@ CONFIG = None
 metadata = MetaData()
 Session = sessionmaker()
 
+
 def loadconfig(filename):
 
-    defaults=StringIO("""\
-[cli_logging]
-error_log=
-""")
+    defaults = StringIO(dedent(
+        """\
+        [cli_logging]
+        error_log=
+        """))
 
     config = SafeConfigParser()
     config.readfp(defaults)
@@ -37,11 +41,13 @@ error_log=
     set_dsn(dsn)
     return config
 
+
 class memoized(object):
     """Decorator that caches a function's return value each time it is called.
     If called later with the same arguments, the cached value is returned, and
     not re-evaluated.
     """
+
     def __init__(self, func):
         self.func = func
         self.cache = {}
@@ -50,7 +56,8 @@ class memoized(object):
         obsoletion = datetime.now() - timedelta(seconds=60*5)
         if args in self.cache and self.cache[args][1] < obsoletion:
             # value too old. Remove it from the cache
-            LOG.debug("Removing obsolete value for args %r from cache." % (args,))
+            LOG.debug("Removing obsolete value "
+                      "for args %r from cache." % (args,))
             del(self.cache[args])
 
         try:
@@ -81,6 +88,7 @@ class memoized(object):
         """Support instance methods."""
         return functools.partial(self.__call__, obj)
 
+
 def uri_depth(uri):
     "determines the depth of a uri"
     if not uri:
@@ -88,6 +96,7 @@ def uri_depth(uri):
     if uri.endswith(sep):
         uri = uri[0:-1]
     return len(uri.split(sep))
+
 
 def file_md5(path):
     """
@@ -101,6 +110,7 @@ def file_md5(path):
         chunk = fptr.read(1024)
     fptr.close()
     return hash.hexdigest()
+
 
 def uri_to_ltree(uri):
     if not uri or uri == "/":
@@ -120,20 +130,20 @@ def uri_to_ltree(uri):
     ltree = ltree.replace(sep, ".")
     return ltree
 
+
 def set_dsn(dsn):
     engine = create_engine(dsn)
     metadata.bind = engine
     Session.bind = engine
 
-from metafilter.model.nodes import Node
-from metafilter.model.queries import Query
-from metafilter.model.tags import Tag
+
+from metafilter.model.nodes import Node  # NOQA
+from metafilter.model.queries import Query  # NOQA
+from metafilter.model.tags import Tag  # NOQA
 
 #
 # Parse the config file
 #
-from os.path import join, exists, expanduser
-from os import getcwd
 
 paths = [
     join(getcwd(), 'config.ini'),
@@ -148,4 +158,5 @@ for path in paths:
     CONFIG = loadconfig(path)
 
 if not CONFIG:
-    LOG.error('Unable to open config file (search order: %s)' % (', '.join(paths)))
+    LOG.error('Unable to open config file (search order: %s)' % (
+        ', '.join(paths)))

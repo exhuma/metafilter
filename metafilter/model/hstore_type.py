@@ -56,7 +56,7 @@ class HStoreSyntaxError(SQLAlchemyError):
 def _parse_hstore(hstore_str):
     """
     Parse an hstore from it's literal string representation.
-    
+
     Attempts to approximate PG's hstore input parsing rules as closely as
     possible. Although currently this is not strictly necessary, since the
     current implementation of hstore's output syntax is stricter than what it
@@ -77,7 +77,7 @@ def _parse_hstore(hstore_str):
         result[key] = value
 
         pos += pair_match.end()
-                
+
         delim_match = HSTORE_DELIMITER_RE.match(hstore_str[ pos : ])
         if delim_match is not None:
             pos += delim_match.end()
