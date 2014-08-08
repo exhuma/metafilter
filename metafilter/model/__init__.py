@@ -1,45 +1,16 @@
-from ConfigParser import SafeConfigParser
-from cStringIO import StringIO
-from os import getcwd
-from os.path import join, exists, expanduser
-from textwrap import dedent
 import functools
 import logging
 
 from datetime import datetime, timedelta
 from hashlib import md5
 from os.path import sep
-from sqlalchemy import MetaData
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 import re
 import sqlalchemy
 
 NON_LTREE = re.compile(r'[^a-zA-Z0-9/]')
 LOG = logging.getLogger(__name__)
-CONFIG = None
-metadata = MetaData()
-Session = sessionmaker()
-
-
-def loadconfig(filename):
-
-    defaults = StringIO(dedent(
-        """\
-        [cli_logging]
-        error_log=
-        """))
-
-    config = SafeConfigParser()
-    config.readfp(defaults)
-    config.read(filename)
-
-    dsn = config.get('database', 'dsn', None)
-    if not dsn:
-        raise ValueError('No DSN found in the config file! This is required!')
-
-    set_dsn(dsn)
-    return config
 
 
 class memoized(object):
@@ -131,32 +102,11 @@ def uri_to_ltree(uri):
     return ltree
 
 
-def set_dsn(dsn):
+def make_scoped_session(dsn):
     engine = create_engine(dsn)
-    metadata.bind = engine
-    Session.bind = engine
+    return scoped_session(sessionmaker(bind=engine))
 
 
 from metafilter.model.nodes import Node  # NOQA
 from metafilter.model.queries import Query  # NOQA
 from metafilter.model.tags import Tag  # NOQA
-
-#
-# Parse the config file
-#
-
-paths = [
-    join(getcwd(), 'config.ini'),
-    join(expanduser("~"), '.metafilter', 'config.ini'),
-    join('/', 'etc', 'metafilter', 'config.ini'),
-]
-
-for path in paths:
-    if not exists(path):
-        continue
-    LOG.debug('Reading config from %s' % path)
-    CONFIG = loadconfig(path)
-
-if not CONFIG:
-    LOG.error('Unable to open config file (search order: %s)' % (
-        ', '.join(paths)))

@@ -13,19 +13,17 @@ import sys
 
 from fuse import FUSE, Operations, FuseOSError
 
-from metafilter.model import Session, memoized
+from metafilter.model import make_scoped_session, memoized
 from metafilter.model.nodes import (
     by_uri,
     from_incremental_query,
     map_to_fs,
     subdirs,
 )
-import metafilter.model
 
 
 class MetaFilterFs(Operations):
-
-    def __init__(self, dsn, root):
+    def __init__(self, session, root):
         self.files = {}  # TODO remove
         self.data = defaultdict(str)  # TODO remove
         self.fd = 0  # TODO remove
@@ -36,10 +34,8 @@ class MetaFilterFs(Operations):
         self.log = logging.getLogger(__name__)
         self.setup_logging()
         self.log.info("*** Fuse Initialised")
-        metafilter.model.set_dsn(dsn)
-        self.sess = Session()
+        self.sess = session
         self.root = '/'
-        self.dsn = "sqlite://"
 
         try:
             os.chdir(root)
@@ -144,5 +140,8 @@ if __name__ == "__main__":
     if len(argv) != 4:
         print 'usage: %s <dsn> <root> <mountpoint>' % argv[0]
         exit(1)
-    FUSE(MetaFilterFs(argv[1], argv[2]), argv[3], foreground=False,
+    FUSE(MetaFilterFs(make_scoped_session(argv[1]),
+                      argv[2]),
+         argv[3],
+         foreground=False,
          allow_other=True)
