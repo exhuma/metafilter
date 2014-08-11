@@ -19,34 +19,33 @@ query_table = Table(
 LOG = logging.getLogger(__name__)
 
 
-@memoized
-def all(session):
-    return session.query(Query).order_by(Query.query)
-
-
-@memoized
-def by_query(session, query):
-    return session.query(Query).filter(Query.query == query).first()
-
-
-def update(session, old_query, new_query, label=None):
-    upd = query_table.update()
-    upd = upd.values(query=new_query, label=label)
-    upd = upd.where(query_table.c.query == old_query)
-    upd.execute()
-
-
-def delete(session, query):
-    query_table.delete(query_table.c.query == query).execute()
-
-
 class Query(object):
+
+    @memoized
+    @staticmethod
+    def all(session):
+        return session.query(Query).order_by(Query.query)
+
+    @memoized
+    @staticmethod
+    def by_query(session, query):
+        return session.query(Query).filter(Query.query == query).first()
+
+    @staticmethod
+    def update(session, old_query, new_query, label=None):
+        upd = query_table.update()
+        upd = upd.values(query=new_query, label=label)
+        upd = upd.where(query_table.c.query == old_query)
+        upd.execute()
+
+    @staticmethod
+    def delete(session, query):
+        query_table.delete(query_table.c.query == query).execute()
 
     def __init__(self, query):
         self.query = query
 
     def __repr__(self):
-        return "<Query %r>" % (
-            self.query)
+        return "Query({!r})".format(self.query)
 
 mapper(Query, query_table)
