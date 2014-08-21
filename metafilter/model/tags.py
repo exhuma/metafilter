@@ -8,15 +8,11 @@ from sqlalchemy import (
     func,
     select,
 )
-from sqlalchemy.orm import mapper
-from metafilter.model import metadata
+
+from metafilter.model import Base, metadata
+
 
 # --- Table definitions ------------------------------------------------------
-
-tag_table = Table(
-    'tag', metadata,
-    Column('name', Unicode, nullable=False, primary_key=True),
-)
 
 tag_in_tag_group_table = Table(
     'tag_in_tag_group', metadata,
@@ -37,18 +33,18 @@ node_has_tag_table = Table(
 )
 
 
-# --- "Static" methods -------------------------------------------------------
+class Tag(Base):
 
-def tag_counts(sess):
-    tags = select([node_has_tag_table.c.tag, func.count().label('count')])
-    tags = tags.order_by(desc('count'))
-    tags = tags.group_by(node_has_tag_table.c.tag)
-    return tags
+    __tablename__ = 'tag'
 
-# --- Entity Classes ---------------------------------------------------------
+    name = Column(Unicode, nullable=False, primary_key=True)
 
-
-class Tag(object):
+    @staticmethod
+    def counts(sess):
+        tags = select([node_has_tag_table.c.tag, func.count().label('count')])
+        tags = tags.order_by(desc('count'))
+        tags = tags.group_by(node_has_tag_table.c.tag)
+        return tags
 
     @classmethod
     def find(self, sess, name):
@@ -64,7 +60,3 @@ class Tag(object):
 
     def __str__(self):
         return self.name
-
-# --- Mappers ----------------------------------------------------------------
-
-mapper(Tag, tag_table)

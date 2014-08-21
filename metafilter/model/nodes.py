@@ -12,9 +12,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
-    Table,
     Unicode,
-    UniqueConstraint,
     bindparam,
     func,
     not_,
@@ -22,7 +20,7 @@ from sqlalchemy import (
     select,
     text,
 )
-from sqlalchemy.orm import mapper, relation
+from sqlalchemy.orm import relation
 from sqlalchemy.sql import distinct, cast
 from sqlalchemy.exc import IntegrityError
 import parsedatetime.parsedatetime as pdt
@@ -159,15 +157,16 @@ class DummyNode(object):
 
 class Node(Base, DummyNode):
     __tablename__ = 'node'
-    #TODO# UniqueConstraint('uri', name='unique_uri')
     uri = Column(Unicode, nullable=False, primary_key=True)
-    path = Column(String)
+    path = Column(String, unique=True)
     md5 = Column(String(32))
     mimetype = Column(String(32))
     created = Column(DateTime)
     updated = Column(DateTime)
     to_purge = Column(Boolean, default=False)
     rating = Column(Integer, default=0)
+
+    tags = relation(Tag, secondary=node_has_tag_table, backref='nodes')
 
     def __init__(self, uri):
         self.path = uri_to_ltree(uri)
@@ -1065,10 +1064,3 @@ def in_tag_group(sess, stmt, parent_uri, nodes):
     stmt = stmt.filter(Node.md5.in_(md5sums))
 
     return stmt
-
-
-# --- Mappers ----------------------------------------------------------------
-
-mapper(Node, nodes_table, properties={
-    'tags': relation(Tag, secondary=node_has_tag_table, backref='nodes')
-    })
