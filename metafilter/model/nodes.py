@@ -20,15 +20,16 @@ from sqlalchemy import (
     select,
     text,
 )
+
+from sqlalchemy.dialects.postgresql import HSTORE
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relation
 from sqlalchemy.sql import distinct, cast
-from sqlalchemy.exc import IntegrityError
 import parsedatetime.parsedatetime as pdt
 
 from metafilter.util import splitpath
 from metafilter.model import memoized
 from metafilter.model import Base, uri_to_ltree, file_md5, uri_depth
-from metafilter.model.hstore_type import HStore, HStoreColumn
 from metafilter.model.queries import Query
 from metafilter.model.tags import (
     Tag,
@@ -770,7 +771,7 @@ class Node(Base, DummyNode):
 class NodeMeta(Base):
     __tablename__ = 'node_meta'
     md5 = Column(String(32), primary_key=True)
-    metadata = HStoreColumn(HStore())
+    metadata = Column(HSTORE)
 
 
 class AcknowledgedDuplicate(Base):
