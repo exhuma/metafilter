@@ -1,15 +1,13 @@
+from sqlalchemy.exc import SQLAlchemyError
 import re
-import sqlalchemy.types as satypes
+import sqlalchemy.dialects.postgresql as pgdialect
 import sqlalchemy.schema as saschema
-import sqlalchemy.sql as sasql
 import sqlalchemy.sql.expression as saexp
 import sqlalchemy.sql.functions as safunc
-import sqlalchemy.util as sautil
-import sqlalchemy.dialects.postgresql as pgdialect
-from sqlalchemy.exc import SQLAlchemyError
+import sqlalchemy.types as satypes
 
-__all__ = [ 'HStoreSyntaxError', 'HStore', 'HStoreElement', 'pair',
-        'HStoreColumn' ]
+__all__ = ['HStoreSyntaxError', 'HStore', 'HStoreElement', 'pair',
+           'HStoreColumn']
 
 # My best guess at the parsing rules of hstore literals, since no formal
 # grammar is given. This may be overkill since the docs say that current output
@@ -32,6 +30,7 @@ HSTORE_DELIMITER_RE = re.compile(r"""
     [ ]* , [ ]*
     """, re.VERBOSE)
 
+
 class HStoreSyntaxError(SQLAlchemyError):
     """Indicates an error unmarshalling an hstore value."""
     def __init__(self, hstore_str, pos):
@@ -41,17 +40,18 @@ class HStoreSyntaxError(SQLAlchemyError):
         CTX = 20
         hslen = len(hstore_str)
 
-        parsed_tail = hstore_str[ max(pos - CTX - 1, 0) : min(pos, hslen) ]
-        residual = hstore_str[ min(pos, hslen) : min(pos + CTX + 1, hslen) ]
+        parsed_tail = hstore_str[max(pos - CTX - 1, 0):min(pos, hslen)]
+        residual = hstore_str[min(pos, hslen):min(pos + CTX + 1, hslen)]
 
         if len(parsed_tail) > CTX:
-            parsed_tail = '[...]' + parsed_tail[ 1 : ]
+            parsed_tail = '[...]' + parsed_tail[1:]
         if len(residual) > CTX:
-            residual = residual[ : -1 ] + '[...]'
+            residual = residual[:-1] + '[...]'
 
         super(HStoreSyntaxError, self).__init__(
-                "After %r, could not parse residual at position %d: %r" %
-                (parsed_tail, pos, residual))
+            "After %r, could not parse residual at position %d: %r" %
+            (parsed_tail, pos, residual))
+
 
 def _parse_hstore(hstore_str):
     """
@@ -78,16 +78,17 @@ def _parse_hstore(hstore_str):
 
         pos += pair_match.end()
 
-        delim_match = HSTORE_DELIMITER_RE.match(hstore_str[ pos : ])
+        delim_match = HSTORE_DELIMITER_RE.match(hstore_str[pos:])
         if delim_match is not None:
             pos += delim_match.end()
 
-        pair_match = HSTORE_PAIR_RE.match(hstore_str[ pos : ])
+        pair_match = HSTORE_PAIR_RE.match(hstore_str[pos:])
 
     if pos != len(hstore_str):
         raise HStoreSyntaxError(hstore_str, pos)
 
     return result
+
 
 def _serialize_hstore(val):
     """
@@ -99,9 +100,9 @@ def _serialize_hstore(val):
             return s.encode('string_escape').replace('"', r'\"')
         except AttributeError:
             raise ValueError("%r in %s position is not a string." %
-                    (s, position))
-    return ', '.join( '"%s"=>"%s"' % (esc(k, 'key'), esc(v, 'value'))
-            for k, v in val.iteritems() )
+                             (s, position))
+    return ', '.join('"%s"=>"%s"' % (esc(k, 'key'), esc(v, 'value'))
+                     for k, v in val.iteritems())
 
 
 class HStore(satypes.MutableType, satypes.Concatenable, satypes.TypeEngine):
@@ -204,9 +205,9 @@ class pair(_HStoreBinaryExpression):
     """
     Construct an hstore on the server side using the pair operator.
 
-    This is different from a one-member hstore literal because the key and
-    value are evaluated as SQLAlchemy expressions, so the key, value, or both
-    may contain columns, function calls, or any other valid SQL expressions which
+    This is different from a one-member hstore literal because the key and value
+    are evaluated as SQLAlchemy expressions, so the key, value, or both may
+    contain columns, function calls, or any other valid SQL expressions which
     evaluate to text.
     """
     def __init__(self, key, val):
@@ -221,6 +222,7 @@ class pair(_HStoreBinaryExpression):
 
 class _HStoreDeleteFunction(HStoreElement, safunc.GenericFunction):
     __return_type__ = HStore
+
     def __init__(self, store, key, **kwargs):
         safunc.GenericFunction.__init__(self, args=[store, key], **kwargs)
         self.name = 'delete'
@@ -228,6 +230,7 @@ class _HStoreDeleteFunction(HStoreElement, safunc.GenericFunction):
 
 class _HStoreKeysFunction(safunc.GenericFunction):
     __return_type__ = pgdialect.ARRAY(satypes.Text)
+
     def __init__(self, store, **kwargs):
         safunc.GenericFunction.__init__(self, args=[store], **kwargs)
         self.name = 'akeys'
@@ -235,6 +238,7 @@ class _HStoreKeysFunction(safunc.GenericFunction):
 
 class _HStoreValsFunction(safunc.GenericFunction):
     __return_type__ = pgdialect.ARRAY(satypes.Text)
+
     def __init__(self, store, **kwargs):
         safunc.GenericFunction.__init__(self, args=[store], **kwargs)
         self.name = 'avals'
@@ -257,24 +261,24 @@ if __name__ == '__main__':
     meta = MetaData()
 
     test_table = Table('test', meta,
-            Column('id', Integer(), primary_key=True),
-            HStoreColumn('hash', HStore()))
+                       Column('id', Integer(), primary_key=True),
+                       HStoreColumn('hash', HStore()))
 
     conn = engine.connect()
 
     hashcol = test_table.c.hash
     where_tests = [
-            hashcol.has_key('foo'),
-            hashcol.contains({'foo': '1'}),
-            hashcol.contained_by({'foo': '1'}) ]
+        'foo' in hashcol,
+        hashcol.contains({'foo': '1'}),
+        hashcol.contained_by({'foo': '1'})]
     select_tests = [
-            hashcol['foo'],
-            hashcol.dissoc('foo'),
-            pair('foo', '3')['foo'],
-            hashcol.assoc(sql.cast(test_table.c.id, Text), '3'),
-            hashcol + hashcol,
-            (hashcol + hashcol)['foo'],
-            hashcol.keys() ]
+        hashcol['foo'],
+        hashcol.dissoc('foo'),
+        pair('foo', '3')['foo'],
+        hashcol.assoc(sql.cast(test_table.c.id, Text), '3'),
+        hashcol + hashcol,
+        (hashcol + hashcol)['foo'],
+        hashcol.keys()]
 
     for wt in where_tests:
         a = sql.select([test_table], whereclause=wt)
@@ -294,6 +298,7 @@ if __name__ == '__main__':
         def __init__(self, id_, hash_):
             self.id = id_
             self.hash = hash_
+
         def __repr__(self):
             return "TestObj(%r, %r)" % (self.id, self.hash)
 
