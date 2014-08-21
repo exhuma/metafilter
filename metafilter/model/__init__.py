@@ -5,12 +5,14 @@ from datetime import datetime, timedelta
 from hashlib import md5
 from os.path import sep
 from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 import re
 import sqlalchemy
 
 NON_LTREE = re.compile(r'[^a-zA-Z0-9/]')
 LOG = logging.getLogger(__name__)
+Base = declarative_base()
 
 
 class memoized(object):
