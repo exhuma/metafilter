@@ -9,13 +9,13 @@ from sqlalchemy import (
     select,
 )
 
-from metafilter.model import Base, metadata
+from metafilter.model import Base
 
 
 # --- Table definitions ------------------------------------------------------
 
 tag_in_tag_group_table = Table(
-    'tag_in_tag_group', metadata,
+    'tag_in_tag_group', Base.metadata,
     Column('tagname', Unicode,
            ForeignKey('tag.name', onupdate="CASCADE", ondelete='CASCADE'),
            nullable=False, primary_key=True),
@@ -25,7 +25,7 @@ tag_in_tag_group_table = Table(
 )
 
 node_has_tag_table = Table(
-    'node_has_tag', metadata,
+    'node_has_tag', Base.metadata,
     Column('md5', String(32),
            ForeignKey('node.md5'), nullable=False, primary_key=True),
     Column('tag', Unicode,

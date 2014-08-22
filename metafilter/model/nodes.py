@@ -771,7 +771,7 @@ class Node(Base, DummyNode):
 class NodeMeta(Base):
     __tablename__ = 'node_meta'
     md5 = Column(String(32), primary_key=True)
-    metadata = Column(HSTORE)
+    mdata = Column(HSTORE, name="metadata")
 
 
 class AcknowledgedDuplicate(Base):
