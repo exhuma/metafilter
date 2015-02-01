@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     Unicode,
     bindparam,
+    cast,
     func,
     not_,
     or_,
@@ -24,11 +25,10 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import HSTORE
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relation
-from sqlalchemy.sql import distinct, cast
 import parsedatetime.parsedatetime as pdt
 
 from metafilter.util import splitpath
-from metafilter.model import memoized
+from metafilter.model import memoized, LTree
 from metafilter.model import Base, uri_to_ltree, file_md5, uri_depth
 from metafilter.model.queries import Query
 from metafilter.model.tags import (
@@ -159,7 +159,7 @@ class DummyNode(object):
 class Node(Base, DummyNode):
     __tablename__ = 'node'
     uri = Column(Unicode, nullable=False, primary_key=True)
-    path = Column(String, unique=True)
+    path = Column(LTree, unique=True)
     md5 = Column(String(32))
     mimetype = Column(String(32))
     created = Column(DateTime)
@@ -342,7 +342,8 @@ class Node(Base, DummyNode):
 
         if auto_tags:
             Node.set_tags(sess, db_node.md5, auto_tags, False)
-            sess.add(db_node)
+
+        sess.add(db_node)
         LOG.info("Updated %s with tags %r" % (db_node, auto_tags))
 
     @staticmethod
@@ -376,8 +377,8 @@ class Node(Base, DummyNode):
         if not oldest_refresh:
             oldest_refresh = select([func.max(Node.updated)])
             oldest_refresh = oldest_refresh.where(
-                Node.path.op("<@")(root_ltree))
-            oldest_refresh = oldest_refresh.execute().first()[0]
+                Node.path.op("<@")(cast(root_ltree, LTree)))
+            oldest_refresh = sess.execute(oldest_refresh).first()[0]
 
         LOG.info("Rescanning files that changed since %s" % oldest_refresh)
 

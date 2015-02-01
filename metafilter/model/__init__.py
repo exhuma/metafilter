@@ -9,10 +9,33 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 import re
 import sqlalchemy
+import sqlalchemy.types as types
 
 NON_LTREE = re.compile(r'[^a-zA-Z0-9/]')
 LOG = logging.getLogger(__name__)
 Base = declarative_base()
+
+
+class LTree(types.UserDefinedType):
+    "LTree Type for PostgreSQL."
+
+    def get_col_spec(self):
+        return "ltree"
+
+    def bind_processor(self, dialect):
+        def process(value):
+            if value is None:
+                return None
+            return str(value)
+        return process
+
+    def result_processor(self, dialect, coltype):
+        def process(value):
+            if value is None:
+                return None
+            return str(value)
+        return process
+
 
 
 class memoized(object):

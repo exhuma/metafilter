@@ -21,6 +21,28 @@ from sqlalchemy import (
     Unicode,
 )
 from sqlalchemy.dialects.postgresql import HSTORE
+import sqlalchemy.types as types
+
+
+class LTree(types.UserDefinedType):
+    "LTree Type for PostgreSQL."
+
+    def get_col_spec(self):
+        return "ltree"
+
+    def bind_processor(self, dialect):
+        def process(value):
+            if value is None:
+                return None
+            return str(value)
+        return process
+
+    def result_processor(self, dialect, coltype):
+        def process(value):
+            if value is None:
+                return None
+            return str(value)
+        return process
 
 
 def upgrade():
@@ -28,7 +50,7 @@ def upgrade():
     op.create_table(
         'node',
         Column('uri', Unicode, nullable=False, primary_key=True),
-        Column('path', String, unique=True),
+        Column('path', LTree, unique=True),
         Column('md5', String(32)),
         Column('mimetype', String(32)),
         Column('created', DateTime),

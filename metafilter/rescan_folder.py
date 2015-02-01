@@ -13,12 +13,8 @@ from config_resolver import Config
 LOG = logging.getLogger(__name__)
 CONF = Config('wicked', 'metafilter')
 
-from metafilter.model import Session, CONFIG, set_dsn
-from metafilter.model.nodes import (
-    calc_md5,
-    remove_orphans,
-    update_nodes_from_path,
-)
+from metafilter.model import make_scoped_session
+from metafilter.model.nodes import Node
 
 
 def setup_logging(verbose=False, quiet=False):
@@ -38,7 +34,7 @@ def setup_logging(verbose=False, quiet=False):
     if quiet:
         console_handler.setLevel(logging.WARNING)
 
-    error_log = expanduser(CONFIG.get('cli_logging', 'error_log', None))
+    error_log = expanduser(CONF.get('cli_logging', 'error_log', ''))
     if error_log:
         if not exists(dirname(error_log)):
             LOG.info('Creating logging folder: %s' % dirname(error_log))
@@ -52,7 +48,7 @@ def setup_logging(verbose=False, quiet=False):
 
 def parse_arguments():
 
-    parser = OptionParser(usage='usage: %prog [options] <scan_folder>')
+    parser = OptionParser(usage='usage: %prog -d <dsn> [options] <scan_folder>')
     parser.add_option(
         "-s", "--since",
         dest="since",
@@ -117,8 +113,12 @@ def parse_arguments():
 
     options, args = parser.parse_args()
     if not args:
-        print(parser.print_usage(), file=sys.stderr)
+        parser.print_usage()
         raise ValueError("No path specified!")
+
+    if not options.dsn:
+        parser.print_usage()
+        raise ValueError("No DSN specified!")
 
     return options, args
 
@@ -133,12 +133,6 @@ def main():
 
     setup_logging(options.verbose, options.quiet)
 
-    if options.dsn:
-        set_dsn(options.dsn)
-    else:
-        LOG.fatal("No DSN specified!")
-        return 9
-
     if options.since:
         try:
             options.since = datetime.strptime(options.since, "%Y-%m-%d")
@@ -146,17 +140,19 @@ def main():
             LOG.error(exc)
             options.since = None
 
-    sess = Session()
+    sess = make_scoped_session(options.dsn)
 
     if not options.no_insert:
-        update_nodes_from_path(sess, args[0], options.since,
-                               options.auto_tag_tail, options.auto_tag_words)
+        Node.update_nodes_from_path(sess, args[0],
+                                    options.since,
+                                    options.auto_tag_tail,
+                                    options.auto_tag_words)
 
     if options.purge:
-        remove_orphans(sess, args[0])
+        Node.remove_orphans(sess, args[0])
 
     if options.md5:
-        calc_md5(sess, args[0], options.since)
+        Node.calc_md5(sess, args[0], options.since)
 
     sess.close()
     print("Rescan finished")
