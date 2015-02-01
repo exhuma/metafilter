@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from __future__ import print_function
 from datetime import datetime
 from optparse import OptionParser
 from os import makedirs
@@ -116,7 +117,7 @@ def parse_arguments():
 
     options, args = parser.parse_args()
     if not args:
-        print parser.print_usage()
+        print(parser.print_usage(), file=sys.stderr)
         raise ValueError("No path specified!")
 
     return options, args
@@ -127,7 +128,7 @@ def main():
     try:
         options, args = parse_arguments()
     except ValueError as exc:
-        print exc
+        print(exc, file=sys.stderr)
         return 9
 
     setup_logging(options.verbose, options.quiet)
@@ -135,7 +136,7 @@ def main():
     if options.dsn:
         set_dsn(options.dsn)
     else:
-        print LOG.fatal("No DSN specified!")
+        LOG.fatal("No DSN specified!")
         return 9
 
     if options.since:
@@ -158,8 +159,9 @@ def main():
         calc_md5(sess, args[0], options.since)
 
     sess.close()
-    print "Rescan finished"
+    print("Rescan finished")
     return 0
+
 
 if __name__ == '__main__':
     sys.exit(main())
