@@ -159,6 +159,7 @@ def main():
 
     sess.close()
     print "Rescan finished"
+    return 0
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
