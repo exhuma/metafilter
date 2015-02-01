@@ -10,16 +10,6 @@ import sys
 from config_resolver import Config
 
 LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
-
-FORMATTER = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-CONSOLE_HANDLER = logging.StreamHandler()
-CONSOLE_HANDLER.setLevel(logging.INFO)
-CONSOLE_HANDLER.setFormatter(FORMATTER)
-logging.getLogger().setLevel(logging.DEBUG)
-logging.getLogger().addHandler(CONSOLE_HANDLER)
-
 CONF = Config('wicked', 'metafilter')
 
 from metafilter.model import Session, CONFIG, set_dsn
@@ -29,19 +19,38 @@ from metafilter.model.nodes import (
     update_nodes_from_path,
 )
 
-error_log = expanduser(CONFIG.get('cli_logging', 'error_log', None))
-if error_log:
-    if not exists(dirname(error_log)):
-        LOG.info('Creating logging folder: %s' % dirname(error_log))
-        makedirs(dirname(error_log))
-    ERROR_HANDLER = logging.handlers.RotatingFileHandler(
-        filename=error_log, maxBytes=102400, backupCount=5)
-    ERROR_HANDLER.setLevel(logging.WARNING)
-    ERROR_HANDLER.setFormatter(FORMATTER)
-    logging.getLogger().addHandler(ERROR_HANDLER)
+
+def setup_logging(verbose=False, quiet=False):
+    root_logger = logging.getLogger()
+    LOG.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(console_handler)
+
+    if verbose:
+        console_handler.setLevel(logging.DEBUG)
+
+    if quiet:
+        console_handler.setLevel(logging.WARNING)
+
+    error_log = expanduser(CONFIG.get('cli_logging', 'error_log', None))
+    if error_log:
+        if not exists(dirname(error_log)):
+            LOG.info('Creating logging folder: %s' % dirname(error_log))
+            makedirs(dirname(error_log))
+        error_handler = logging.handlers.RotatingFileHandler(
+            filename=error_log, maxBytes=102400, backupCount=5)
+        error_handler.setLevel(logging.WARNING)
+        error_handler.setFormatter(formatter)
+        root_logger.addHandler(error_handler)
 
 
-def main():
+def parse_arguments():
+
     parser = OptionParser(usage='usage: %prog [options] <scan_folder>')
     parser.add_option(
         "-s", "--since",
@@ -105,12 +114,23 @@ def main():
         default=CONF.get('database', 'dsn'),
         help="The database DSN")
 
-    (options, args) = parser.parse_args()
+    options, args = parser.parse_args()
+    if not args:
+        print parser.print_usage()
+        raise ValueError("No path specified!")
 
-    if options.verbose:
-        CONSOLE_HANDLER.setLevel(logging.DEBUG)
-    if options.quiet:
-        CONSOLE_HANDLER.setLevel(logging.WARNING)
+    return options, args
+
+
+def main():
+
+    try:
+        options, args = parse_arguments()
+    except ValueError as exc:
+        print exc
+        return 9
+
+    setup_logging(options.verbose, options.quiet)
 
     if options.dsn:
         set_dsn(options.dsn)
@@ -124,11 +144,6 @@ def main():
         except Exception, exc:
             LOG.error(exc)
             options.since = None
-
-    if not args:
-        LOG.critical("No path specified!")
-        print parser.print_usage()
-        sys.exit(9)
 
     sess = Session()
 
