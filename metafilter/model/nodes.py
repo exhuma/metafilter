@@ -15,6 +15,7 @@ from sqlalchemy import (
     Unicode,
     bindparam,
     cast,
+    distinct,
     func,
     not_,
     or_,
@@ -679,8 +680,6 @@ class Node(Base, DummyNode):
 
             if query_type == 'tag_group':
                 stmt = in_tag_group(sess, stmt, parent_uri, query_nodes)
-
-        print stmt
 
         if not flatten:
             stmt = stmt.subquery()

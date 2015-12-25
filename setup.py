@@ -18,7 +18,7 @@ setup(
         'pillow',
         'psycopg2==2.3.0',
         'simplejson',
-        'sqlalchemy==0.6.5',
+        'sqlalchemy',
     ],
     author="Michel Albert",
     author_email="michel@albert.lu",

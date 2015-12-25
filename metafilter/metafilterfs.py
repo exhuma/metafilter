@@ -12,14 +12,14 @@ import os
 import sys
 
 from fuse import FUSE, Operations, FuseOSError
+from config_resolver import Config
 
-from metafilter.model import make_scoped_session, memoized
-from metafilter.model.nodes import (
-    by_uri,
-    from_incremental_query,
-    map_to_fs,
-    subdirs,
-)
+from metafilter.model import make_scoped_session, memoized, Node
+from metafilter.model.nodes import subdirs
+
+
+LOG = logging.getLogger(__name__)
+CONF = Config('wicked', 'metafilter')
 
 
 class MetaFilterFs(Operations):
@@ -136,12 +136,13 @@ class MetaFilterFs(Operations):
                     sys.getfilesystemencoding(), 'replace'))
         return entries
 
+
 if __name__ == "__main__":
-    if len(argv) != 4:
-        print 'usage: %s <dsn> <root> <mountpoint>' % argv[0]
+    dsn = CONF.get('database', 'dsn')
+    if len(argv) != 3:
+        print 'usage: %s <root> <mountpoint>' % argv[0]
         exit(1)
-    FUSE(MetaFilterFs(make_scoped_session(argv[1]),
-                      argv[2]),
-         argv[3],
-         foreground=False,
+    FUSE(MetaFilterFs(make_scoped_session(dsn), argv[1]),
+         argv[2],
+         foreground=True,
          allow_other=True)
