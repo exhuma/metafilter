@@ -12,11 +12,10 @@ setup(
     ],
     install_requires=[
         'Flask==0.6',
-        'PIL',
         'config_resolver<4.0',
         'fusepy==2.0.2',
-        'parsedatetime',
         'parsedatetime==1.1.2',
+        'pillow',
         'psycopg2==2.3.0',
         'simplejson',
         'sqlalchemy==0.6.5',
