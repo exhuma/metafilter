@@ -767,6 +767,8 @@ class Node(Base, DummyNode):
                 flatten_map[mapping_base][node.flatname] = node.uri
             return flatten_map[mapping_base].get(flatname, None)
 
+    def exists_on_disk(self):
+        return exists(self.uri)
 
 class NodeMeta(Base):
     __tablename__ = 'node_meta'

@@ -121,6 +121,8 @@ class MetaFilterFs(Operations):
 
         # split into path elements
         for node in Node.from_incremental_query(self.sess, path):
+            if not node.exists_on_disk():
+                continue
             if path.endswith('/__flat__'):
                 entries.append(node.flatname.encode(
                     sys.getfilesystemencoding(), 'replace'))
