@@ -56,7 +56,7 @@ class MetaFilterFs(Operations):
             raise FuseOSError(ENOENT)
 
         if path != "/":
-            fs_path = map_to_fs(self.sess, path)
+            fs_path = Node.map_to_fs(self.sess, path)
         else:
             fs_path = None
 
@@ -66,8 +66,9 @@ class MetaFilterFs(Operations):
             if fs_path:
                 self.log.debug("Node maps to filesystem => query system stat")
                 if not exists(fs_path):
+                    self.log.debug('ENOENT: %r', fs_path)
                     raise FuseOSError(ENOENT)
-                node = by_uri(self.sess, fs_path)
+                node = Node.by_uri(self.sess, fs_path)
                 if node:
                     stat = os.lstat(fs_path)
                     return dict((key, getattr(stat, key))
@@ -95,7 +96,7 @@ class MetaFilterFs(Operations):
 
     def read(self, path, size, offset, fh):
         self.log.debug("Entering read. Locals: %r" % locals())
-        fs_path = map_to_fs(self.sess, path)
+        fs_path = Node.map_to_fs(self.sess, path)
         self.log.info('Reading local file %r' % fs_path)
         fptr = open(fs_path)
         fptr.seek(offset, 0)
@@ -119,7 +120,7 @@ class MetaFilterFs(Operations):
                 sys.getfilesystemencoding(), 'replace'))
 
         # split into path elements
-        for node in from_incremental_query(self.sess, path):
+        for node in Node.from_incremental_query(self.sess, path):
             if path.endswith('/__flat__'):
                 entries.append(node.flatname.encode(
                     sys.getfilesystemencoding(), 'replace'))
@@ -131,10 +132,11 @@ class MetaFilterFs(Operations):
 
 if __name__ == "__main__":
     dsn = CONF.get('database', 'dsn')
+    session = make_scoped_session(dsn)
     if len(argv) != 3:
         print 'usage: %s <root> <mountpoint>' % argv[0]
         exit(1)
-    FUSE(MetaFilterFs(make_scoped_session(dsn), argv[1]),
+    FUSE(MetaFilterFs(session, argv[1]),
          argv[2],
          foreground=True,
          allow_other=True)
