@@ -127,7 +127,8 @@ def uri_to_ltree(uri):
 
 
 def make_scoped_session(dsn):
-    engine = create_engine(dsn)
+    engine = create_engine(
+        dsn, pool_size=20, max_overflow=10)
     return scoped_session(sessionmaker(bind=engine))
 
 
