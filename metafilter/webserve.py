@@ -8,9 +8,11 @@ from flask import (
     request,
     url_for,
 )
-from metafilter.model import Node, Query, Session, Tag, set_dsn
+from metafilter.model import Node, Query, Tag, make_scoped_session
 from metafilter.model import queries, nodes, tags as tag_model
 import logging
+
+from config_resolver import Config
 
 LOG = logging.getLogger(__name__)
 app = Flask(__name__)
@@ -25,7 +27,9 @@ app.config.from_object(FlaskConfig())
 
 @app.before_request
 def before_request():
-    g.sess = Session()
+    conf = Config('wicked', 'metafilter')
+    dsn = conf.get('database', 'dsn')
+    g.sess = make_scoped_session(dsn)
 
 
 @app.after_request
@@ -42,7 +46,7 @@ def query(query="root"):
     if not result:
         result = []
 
-    result += nodes.from_incremental_query(g.sess, query)
+    result += Node.from_incremental_query(g.sess, query)
 
     try:
         result = result.order_by([
@@ -69,15 +73,15 @@ def tags():
 
 @app.route('/delete_from_disk/<path>')
 def delete_from_disk(path):
-    nodes.delete_from_disk(g.sess, path)
+    Node.delete_from_disk(g.sess, path)
     return redirect(request.referrer)
 
 
 @app.route('/thumbnail/<path>')
 def thumbnail(path):
-    import Image
+    from PIL import Image
     from cStringIO import StringIO
-    node = nodes.by_path(g.sess, path)
+    node = Node.by_path(g.sess, path)
     try:
         im = Image.open(node.uri)
         im.thumbnail((128, 128), Image.ANTIALIAS)
@@ -92,7 +96,7 @@ def thumbnail(path):
 
 @app.route('/download/<path>')
 def download(path):
-    node = nodes.by_path(g.sess, path)
+    node = Node.by_path(g.sess, path)
     data = open(node.uri, 'rb').read()
     if request.values.get('format', '') == 'json':
         return jsonify(
@@ -113,7 +117,7 @@ def set_rating():
 
 @app.route('/tag_all', methods=["POST"])
 def tag_all():
-    node_qry = nodes.from_incremental_query(g.sess, request.form["query"])
+    node_qry = Node.from_incremental_query(g.sess, request.form["query"])
     tags = []
     for tagname in request.form['tags'].split(','):
         tagname = tagname.strip()
@@ -158,7 +162,7 @@ def save_tags():
     uri = request.form['id']
     tags_value = request.form['value']
     tags = [x.strip() for x in tags_value.split(',')]
-    nodes.set_tags(g.sess, uri, tags)
+    Node.set_tags(g.sess, uri, tags)
     return ', '.join(tags)
 
 
@@ -171,12 +175,12 @@ def delete_query(query):
 @app.route("/duplicates")
 def duplicates():
     return render_template("duplicates.html",
-                           duplicates=nodes.duplicates(g.sess))
+                           duplicates=Node.duplicates(g.sess))
 
 
 @app.route("/acknowledge_duplicate/<md5>")
 def acknowledge_duplicate(md5):
-    nodes.acknowledge_duplicate(g.sess, md5)
+    Node.acknowledge_duplicate(g.sess, md5)
     return redirect(url_for('duplicates'))
 
 
@@ -185,7 +189,7 @@ def view(query, index=0):
     result = nodes.subdirs(g.sess, query)
     if not result:
         result = []
-    result += nodes.from_incremental_query(g.sess, query)
+    result += Node.from_incremental_query(g.sess, query)
     result = filter(lambda x: x.mimetype != 'other/directory', result)
 
     try:
@@ -210,7 +214,7 @@ def file_uri(query, index):
     result = nodes.subdirs(g.sess, query)
     if not result:
         result = []
-    result += nodes.from_incremental_query(g.sess, query)
+    result += Node.from_incremental_query(g.sess, query)
     result = filter(lambda x: x.mimetype in (
         'image/jpeg',
         'image/png',
@@ -243,5 +247,4 @@ def fullscreen(query):
 if __name__ == "__main__":
     app.debug = True
     logging.basicConfig(level=logging.DEBUG)
-    set_dsn("postgresql://filemeta:filemeta@localhost:5432/filemeta")
     app.run(host="0.0.0.0", port=8181, threaded=True)
