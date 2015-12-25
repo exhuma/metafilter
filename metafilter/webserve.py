@@ -9,7 +9,7 @@ from flask import (
     url_for,
 )
 from metafilter.model import Node, Query, Tag, make_scoped_session
-from metafilter.model import queries, nodes, tags as tag_model
+from metafilter.model import queries, nodes
 import logging
 
 from config_resolver import Config
@@ -67,8 +67,8 @@ def query(query="root"):
 
 @app.route('/tags')
 def tags():
-    tags = tag_model.tag_counts(g.sess)
-    return render_template("tags.html", tags=tags.execute())
+    tags = Tag.counts(g.sess)
+    return render_template("tags.html", tags=tags)
 
 
 @app.route('/delete_from_disk/<path>')

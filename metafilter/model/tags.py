@@ -44,7 +44,7 @@ class Tag(Base):
         tags = select([node_has_tag_table.c.tag, func.count().label('count')])
         tags = tags.order_by(desc('count'))
         tags = tags.group_by(node_has_tag_table.c.tag)
-        return tags
+        return sess.execute(tags)
 
     @classmethod
     def find(self, sess, name):
