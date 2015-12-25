@@ -13,6 +13,7 @@ import sys
 
 from fuse import FUSE, Operations, FuseOSError
 from config_resolver import Config
+from gouge.colourcli import Simple
 
 from metafilter.model import make_scoped_session, memoized, Node
 from metafilter.model.nodes import subdirs
@@ -45,16 +46,7 @@ class MetaFilterFs(Operations):
             sys.exit(1)
 
     def setup_logging(self):
-        stdout = logging.StreamHandler()
-        stdout.setLevel(logging.DEBUG)
-        file_out = handlers.RotatingFileHandler(
-            "/tmp/fuse.log", maxBytes=100000)
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        file_out.setFormatter(formatter)
-        stdout.setFormatter(formatter)
-        self.log.addHandler(file_out)
-        self.log.addHandler(stdout)
+        Simple.basicConfig(level=logging.DEBUG, show_threads=True)
         self.log.setLevel(logging.DEBUG)
 
     def getattr(self, path, fh=None):
