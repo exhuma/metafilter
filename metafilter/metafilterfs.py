@@ -111,6 +111,10 @@ class MetaFilterFs(Operations):
         # default (required) entries
         entries = ['.', '..']
 
+        # the virtual flattening folder must exist for windows.
+        if '__flat__' not in path:
+            entries.append('__flat__')
+
         # remove leading '/'
         path = path[1:]
 
