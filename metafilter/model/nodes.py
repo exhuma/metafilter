@@ -156,6 +156,8 @@ class DummyNode(object):
     def flatname(self):
         return self.label
 
+    def exists_on_disk(self):
+        return True
 
 class Node(Base, DummyNode):
     __tablename__ = 'node'
@@ -602,7 +604,7 @@ class Node(Base, DummyNode):
 
         # Construct the different queries
         if len(query_types) == 1 and query_types[0] == 'all':
-            return all(sess, query_nodes, flatten).order_by(Node.uri)
+            return Node.all(sess, query_nodes, flatten).order_by(Node.uri)
 
         if 'named_queries' in query_types and not query_nodes:
             nq_qry = sess.query(Query)
@@ -751,7 +753,7 @@ class Node(Base, DummyNode):
         elif map_nodes[-1] == '__flat__':
             return '/'
 
-        elif map_nodes[-2] == '__flat__':
+        elif len(map_nodes) >= 2 and map_nodes[-2] == '__flat__':
 
             mapping_base = query_nodes[0:-1]
             flatname = map_nodes[-1]
